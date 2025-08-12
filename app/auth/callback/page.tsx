@@ -1,5 +1,9 @@
 'use client';
 
+import { Suspense } from 'react';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -53,14 +57,16 @@ export default function AuthCallback() {
   }, []);
 
   return (
-    <main className="min-h-[60vh] grid place-items-center p-6">
-      <div className="max-w-md text-center space-y-4">
-        <h1 className="text-xl font-semibold">Auth Callback</h1>
-        <p className="text-sm text-black/70">{msg}</p>
-        <a href="/" className="inline-block rounded-xl bg-black text-white px-4 py-2 text-sm outline outline-1 outline-black outline-offset-[2px]">
-          Continue
-        </a>
-      </div>
-    </main>
+    <Suspense fallback={<div>Loading…</div>}>
+      <main className="min-h-[60vh] grid place-items-center p-6">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-xl font-semibold">Auth Callback</h1>
+          <p className="text-sm text-black/70">{msg}</p>
+          <a href="/" className="inline-block rounded-xl bg-black text-white px-4 py-2 text-sm outline outline-1 outline-black outline-offset-[2px]">
+            Continue
+          </a>
+        </div>
+      </main>
+    </Suspense>
   );
 }
