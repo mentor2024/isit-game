@@ -1,3 +1,12 @@
 export const dynamic = "force-dynamic";
-import { redirect } from "next/navigation";
-export default function Home(){ redirect("/polls"); }
+export const revalidate = 0;
+
+export default function Home() {
+  return (
+    <main style={{padding:24, fontFamily:"system-ui, sans-serif"}}>
+      <h1>ISIT Game</h1>
+      <p>Welcome! This is the homepage.</p>
+      <p>Use the site navigation to explore.</p>
+    </main>
+  );
+}
