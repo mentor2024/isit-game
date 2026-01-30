@@ -93,24 +93,42 @@ export async function deleteUser(formData: FormData) {
     revalidatePath("/admin");
 }
 
-export async function updateUserRole(formData: FormData) {
+export async function updateUser(formData: FormData) {
     const targetUserId = formData.get("userId") as string;
     const newRole = formData.get("newRole") as string;
+    const avatarName = formData.get("avatar_name") as string;
+    const avatarImage = formData.get("avatar_image") as string;
+
     const currentUserRole = await checkRole();
 
-    if (currentUserRole !== 'superadmin') {
-        throw new Error("Only Superadmins can change roles");
+    // Permissions: 
+    // Superadmin: Can edit anything.
+    // Admin: Can edit 'user' roles (but maybe restricted from changing roles? For now let's assume loose check or re-implement strict check)
+
+    if (currentUserRole !== 'superadmin' && currentUserRole !== 'admin') {
+        throw new Error("Unauthorized");
     }
 
     const supabaseAdmin = createServiceRoleClient();
 
+    const updates: any = {};
+    if (newRole) {
+        if (currentUserRole !== 'superadmin') {
+            // Basic protection: Admin cannot promote to Superadmin
+            if (newRole === 'superadmin') throw new Error("Admins cannot promote to Superadmin");
+        }
+        updates.role = newRole;
+    }
+    if (avatarName !== null) updates.avatar_name = avatarName;
+    if (avatarImage !== null) updates.avatar_image = avatarImage;
+
     const { error } = await supabaseAdmin
         .from('user_profiles')
-        .update({ role: newRole })
+        .update(updates)
         .eq('id', targetUserId);
 
     if (error) {
-        console.error("Update role error:", error);
+        console.error("Update profile error:", error);
         redirect(`/admin?error=${encodeURIComponent(error.message)}`);
     }
 
@@ -144,15 +162,60 @@ export async function createUser(formData: FormData) {
         redirect(`/admin?error=${encodeURIComponent(error.message)}`);
     }
 
-    // Update the role immediately after creation
-    if (data.user && role !== 'user') {
-        const { error: roleError } = await supabaseAdmin
-            .from('user_profiles')
-            .update({ role: role })
-            .eq('id', data.user.id);
+    // Update profile
+    const updates: any = { role: role };
+    const avatarName = formData.get("avatar_name") as string;
+    const avatarImage = formData.get("avatar_image") as string;
 
-        if (roleError) console.error("Error setting role:", roleError);
-    }
+    if (avatarName) updates.avatar_name = avatarName;
+    if (avatarImage) updates.avatar_image = avatarImage;
+
+    const { error: profileError } = await supabaseAdmin
+        .from('user_profiles')
+        .update(updates)
+        .eq('id', data.user.id);
+
+    if (profileError) console.error("Error setting profile:", profileError);
 
     revalidatePath("/admin");
+}
+
+export async function resetUserProgress(formData: FormData) {
+    const targetUserId = formData.get("userId") as string;
+    const currentUserRole = await checkRole();
+
+    if (currentUserRole !== 'superadmin' && currentUserRole !== 'admin') {
+        throw new Error("Unauthorized");
+    }
+
+    const supabaseAdmin = createServiceRoleClient();
+
+    // 1. Delete all votes
+    const { error: deleteError } = await supabaseAdmin
+        .from('poll_votes')
+        .delete()
+        .eq('user_id', targetUserId);
+
+    if (deleteError) {
+        console.error("Reset progress error (votes):", deleteError);
+        redirect(`/admin/users/${targetUserId}?error=${encodeURIComponent(deleteError.message)}`);
+    }
+
+    // 2. Reset Score to 0
+    const { error: updateError } = await supabaseAdmin
+        .from('user_profiles')
+        .update({
+            score: 0,
+            current_stage: 0, // Reset to Stage 0 (Introduction)
+            current_level: 1
+        })
+        .eq('id', targetUserId);
+
+    if (updateError) {
+        console.error("Reset progress error (score):", updateError);
+        redirect(`/admin/users/${targetUserId}?error=${encodeURIComponent(updateError.message)}`);
+    }
+
+    // revalidatePath(`/admin/users/${targetUserId}`);
+    redirect(`/admin/users/${targetUserId}?message=User%20progress%20has%20been%20fully%20reset.`);
 }

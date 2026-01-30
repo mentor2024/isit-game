@@ -12,6 +12,8 @@ type PollTwoColLayoutProps = {
     prevPollInstructions?: string;
     resultsPairs: PairResult[];
     children: React.ReactNode; // The game (BinaryAssign)
+    currentPollTitle?: string;
+    currentPollInstructions?: string | null;
 };
 
 export function PollTwoColLayout({
@@ -19,6 +21,8 @@ export function PollTwoColLayout({
     prevPollInstructions,
     resultsPairs,
     children,
+    currentPollTitle,
+    currentPollInstructions,
 }: PollTwoColLayoutProps) {
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -47,7 +51,21 @@ export function PollTwoColLayout({
                 </aside>
 
                 {/* Right Column: Active Game */}
-                <main className="w-full flex justify-center order-1 md:order-2">
+                {/* Removed 'flex justify-center' to allow full width block layout for header */}
+                <main className="w-full flex flex-col items-center order-1 md:order-2 space-y-6">
+
+                    {/* Header Outside Card */}
+                    {(currentPollTitle || currentPollInstructions) && (
+                        <div className="text-center w-full max-w-lg">
+                            {currentPollTitle && (
+                                <h1 className="text-4xl font-bold mb-4 text-gray-900">{currentPollTitle}</h1>
+                            )}
+                            {currentPollInstructions && (
+                                <p className="text-xl text-gray-700 font-medium">{currentPollInstructions}</p>
+                            )}
+                        </div>
+                    )}
+
                     {/* Constrain width of the game card itself */}
                     <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
                         {children}

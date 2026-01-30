@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { createClient } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 import {
     DndContext,
     DragOverlay,
@@ -14,30 +15,44 @@ import {
 type PollObject = {
     id: string;
     text: string;
+    image_url?: string | null;
 };
 
 type VotingInterfaceProps = {
     pollId: string;
     objects: PollObject[];
+    sides: ("IS" | "IT")[];
 };
 
 type AssignmentMap = Record<string, "IS" | "IT" | null>;
 
 // --- Components ---
 
-// 1. Draggable Word Item
-function DraggableWord({ id, text }: { id: string; text: string }) {
+// 1. Draggable Word Item (Now supports Images)
+function DraggableWord({ id, text, imageUrl }: { id: string; text: string; imageUrl?: string | null }) {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: id,
-        data: { text },
+        data: { text, imageUrl },
     });
 
-    const baseClasses = "flex items-center justify-center min-w-[120px] h-[60px] bg-white rounded-2xl shadow-[0_2px_0_0_rgba(0,0,0,1)] border-2 border-black z-10 px-6";
+    // Base Style
+    const baseClasses = `flex items-center justify-center bg-white shadow-[0_2px_0_0_rgba(0,0,0,1)] border-2 border-black z-10 overflow-hidden relative`;
+
+    // Size variants
+    const sizeClasses = imageUrl
+        ? "w-[200px] h-[200px] rounded-xl" // Square for images (200px), no padding
+        : "min-w-[120px] h-[60px] rounded-2xl px-6"; // Pill for text
+
+    const content = imageUrl ? (
+        <img src={imageUrl} alt={text} className="w-full h-full object-cover pointer-events-none select-none" />
+    ) : (
+        <span className="text-xl font-bold text-black pointer-events-none select-none">{text}</span>
+    );
 
     if (isDragging) {
         return (
-            <div ref={setNodeRef} className={`${baseClasses} opacity-50`}>
-                <span className="text-xl font-bold text-black">{text}</span>
+            <div ref={setNodeRef} className={`${baseClasses} ${sizeClasses} opacity-50`}>
+                {content}
             </div>
         );
     }
@@ -47,42 +62,45 @@ function DraggableWord({ id, text }: { id: string; text: string }) {
             ref={setNodeRef}
             {...listeners}
             {...attributes}
-            className={`${baseClasses} cursor-grab active:cursor-grabbing hover:shadow-[0_4px_0_0_rgba(0,0,0,1)] transition-all`}
+            className={`${baseClasses} ${sizeClasses} cursor-grab active:cursor-grabbing hover:shadow-[0_4px_0_0_rgba(0,0,0,1)] transition-all`}
         >
-            <span className="text-xl font-bold text-black">{text}</span>
+            {content}
         </div>
     );
 }
 
 // 2. Droppable Zone (Image)
-function DropZone({ side, assignedWord }: { side: "IS" | "IT"; assignedWord?: { id: string; text: string } }) {
+function DropZone({ side, assignedWord, hasImages }: { side: "IS" | "IT"; assignedWord?: PollObject; hasImages: boolean }) {
     const { setNodeRef, isOver } = useDroppable({
         id: side,
     });
 
     return (
-        <div ref={setNodeRef} className="flex flex-col items-center relative">
+        <div ref={setNodeRef} className="flex flex-col items-center h-full justify-between relative min-w-[160px]">
 
-            {/* Floating Assigned Word Area */}
-            <div className="h-[80px] flex flex-col items-center justify-end mb-0 z-10">
+            {/* Top Slot for Assigned Word - Exact Height to ensure connector touches */}
+            <div className={`w-full flex justify-center items-start ${hasImages ? "h-[200px]" : "h-[60px]"}`}>
                 {assignedWord && (
-                    <div className="flex flex-col items-center animate-in slide-in-from-bottom-2 fade-in">
-                        <DraggableWord id={assignedWord.id} text={assignedWord.text} />
-                        {/* Connector Line */}
-                        <div className="w-[2px] h-[60px] bg-black my-0"></div>
+                    <div className="z-10">
+                        <DraggableWord id={assignedWord.id} text={assignedWord.text} imageUrl={assignedWord.image_url} />
                     </div>
                 )}
             </div>
 
+            {/* Flexible Connector Line */}
+            {/* Only show for text items. Images float or sit on top? User asked for line. */}
+            {/* If assigned word exists AND matches specific criteria, show line. */}
+            <div className={`w-[2px] bg-black transition-all duration-300 ${assignedWord && !assignedWord.image_url ? "opacity-100 flex-grow" : "opacity-0 flex-grow"}`}></div>
+
             {/* Target Image/Circle */}
             <div
-                className={`relative w-48 h-48 rounded-full border-2 bg-white flex items-center justify-center transition-all duration-300 z-0 ${isOver ? "border-black scale-105" : "border-black"
+                className={`w-[160px] h-[160px] md:w-[180px] md:h-[180px] rounded-full border-2 bg-white flex items-center justify-center transition-all duration-100 z-0 mb-2 ${isOver ? "border-black scale-105" : "border-black"
                     }`}
             >
                 <img
                     src={side === "IS" ? "/is.png" : "/it.png"}
                     alt={side}
-                    className="w-32 h-32 object-contain select-none pointer-events-none"
+                    className="w-24 h-24 object-contain select-none pointer-events-none"
                 />
             </div>
         </div>
@@ -92,26 +110,34 @@ function DropZone({ side, assignedWord }: { side: "IS" | "IT"; assignedWord?: { 
 
 // --- Main Interface ---
 
-export default function VotingInterface({ pollId, objects }: VotingInterfaceProps) {
+export default function VotingInterface({ pollId, objects, sides }: VotingInterfaceProps) {
+    const router = useRouter();
+    // Check if any object has an image to determine Layout Mode (Text vs Image)
+    const hasImages = objects.some(obj => obj.image_url);
+
     const [assignments, setAssignments] = useState<AssignmentMap>(() => {
         return objects.reduce((acc, obj) => ({ ...acc, [obj.id]: null }), {} as AssignmentMap);
     });
 
     const [activeId, setActiveId] = useState<string | null>(null);
     const [draggedText, setDraggedText] = useState<string>("");
+    const [draggedImage, setDraggedImage] = useState<string | null>(null);
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
 
     const handleDragStart = (event: any) => {
         setActiveId(event.active.id);
-        setDraggedText(event.active.data.current?.text || "");
+        const currentData = event.active.data.current;
+        setDraggedText(currentData?.text || "");
+        setDraggedImage(currentData?.imageUrl || null);
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveId(null);
         setDraggedText("");
+        setDraggedImage(null);
 
         if (!over) return;
 
@@ -150,7 +176,7 @@ export default function VotingInterface({ pollId, objects }: VotingInterfaceProp
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 const { error: authError } = await supabase.auth.signInAnonymously();
-                if (authError) throw new Error("Could not sign in. Ensure Anonymous Auth is enabled.");
+                if (authError) throw new Error("Could not sign in.");
             }
 
             const isObject = objects.find(o => assignments[o.id] === "IS");
@@ -158,15 +184,24 @@ export default function VotingInterface({ pollId, objects }: VotingInterfaceProp
 
             if (!isObject || !itObject) throw new Error("Please assign both words.");
 
-            const { error } = await supabase.rpc("vote_isit", {
-                p_poll_id: pollId,
-                p_is_word_id: isObject.id,
-                p_it_word_id: itObject.id,
-            });
+            const { submitVote } = await import("@/app/(main)/poll/actions");
 
-            if (error) throw error;
+            const result = await submitVote(pollId, isObject.id, itObject.id);
 
-            setMessage("Vote submitted successfully!");
+            if (!result.success) {
+                throw new Error(result.error || "Submission failed");
+            }
+
+            if (result.levelUp) {
+                setMessage("Level Complete! 🎉");
+                await new Promise(r => setTimeout(r, 1000));
+                window.location.href = `/levelup?stage=${result.stage}&level=${result.level}&bonus=${result.bonus || 0}&dq=${result.dq || 0}&correct=${result.correctPolls || 0}&total=${result.totalPolls || 0}&points=${result.points || 0}`;
+                return;
+            }
+
+            setMessage("");
+            router.refresh();
+
         } catch (e: any) {
             setMessage(`Error: ${e.message}`);
         } finally {
@@ -174,30 +209,45 @@ export default function VotingInterface({ pollId, objects }: VotingInterfaceProp
         }
     };
 
+    const dndId = useId();
+
     return (
-        <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex flex-col items-center w-full min-h-[600px] pt-12">
+        <DndContext id={dndId} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="flex flex-col items-center w-full">
 
-                {/* Unassigned Words Area */}
-                <div className="h-24 flex gap-8 items-center justify-center mb-8 w-full">
-                    {unassignedObjects.map(obj => (
-                        <DraggableWord key={obj.id} id={obj.id} text={obj.text} />
-                    ))}
-                    {unassignedObjects.length > 0 && !message && (
-                        <p className="absolute top-4 text-sm text-black">Drag a word onto the corresponding symbol below</p>
-                    )}
-                </div>
+                {/* 3-Column Grid Layout */}
+                {/* Fixed Height Container to prevent shifting */}
+                {/* Text: 350px (short connectors), Images: 550px (accommodate larger items) */}
+                {/* w-fit mx-auto to keep columns close together. */}
+                <div className={`grid grid-cols-[1fr_auto_1fr] gap-2 w-fit mx-auto items-stretch mb-8 px-4 ${hasImages ? "h-[550px]" : "h-[350px]"}`}>
 
-                {/* Drop Zones container */}
-                <div className="flex gap-16 md:gap-40 items-end justify-center mb-24 w-full px-12">
-                    <DropZone
-                        side="IT"
-                        assignedWord={objects.find(o => assignments[o.id] === "IT")}
-                    />
-                    <DropZone
-                        side="IS"
-                        assignedWord={objects.find(o => assignments[o.id] === "IS")}
-                    />
+                    {/* LEFT ZONE (IS or IT) */}
+                    <div className="h-full">
+                        <DropZone
+                            side={sides[0]}
+                            assignedWord={objects.find(o => assignments[o.id] === sides[0])}
+                            hasImages={hasImages}
+                        />
+                    </div>
+
+                    {/* CENTER ZONE (Unassigned) */}
+                    {/* Aligned to Top to match DropZone slots */}
+                    <div className="flex gap-4 items-start min-w-[100px] justify-center">
+                        {unassignedObjects.map(obj => (
+                            <div key={obj.id} className="z-20">
+                                <DraggableWord id={obj.id} text={obj.text} imageUrl={obj.image_url} />
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* RIGHT ZONE (IT or IS) */}
+                    <div className="h-full">
+                        <DropZone
+                            side={sides[1]}
+                            assignedWord={objects.find(o => assignments[o.id] === sides[1])}
+                            hasImages={hasImages}
+                        />
+                    </div>
                 </div>
 
                 {/* Action Buttons */}
@@ -222,7 +272,13 @@ export default function VotingInterface({ pollId, objects }: VotingInterfaceProp
 
                 {/* Messages */}
                 {message && (
-                    <div className={`mt-6 px-6 py-3 rounded-xl font-bold border-2 border-black ${message.includes("Error") ? "bg-white text-black" : "bg-black text-white"}`}>
+                    <div className={`mt-6 px-6 py-3 rounded-xl font-bold border-2 border-black animate-in fade-in zoom-in duration-300
+                        ${message.includes("Error") ? "bg-red-50 text-red-600 border-red-500" :
+                            message.includes("Incorrect") ? "bg-red-500 text-white border-red-700" :
+                                message.includes("Correct") ? "bg-green-500 text-white border-green-700" :
+                                    "bg-black text-white"
+                        }
+                    `}>
                         {message}
                     </div>
                 )}
@@ -232,9 +288,15 @@ export default function VotingInterface({ pollId, objects }: VotingInterfaceProp
             {/* Drag Overlay */}
             <DragOverlay>
                 {activeId ? (
-                    <div className="flex items-center justify-center min-w-[120px] h-[60px] bg-white rounded-2xl shadow-[0_4px_0_0_rgba(0,0,0,1)] border-2 border-black rotate-3 scale-105 cursor-grabbing px-6">
-                        <span className="text-xl font-bold text-black">{draggedText}</span>
-                    </div>
+                    draggedImage ? (
+                        <div className="w-[200px] h-[200px] bg-white rounded-xl shadow-[0_4px_0_0_rgba(0,0,0,1)] border-2 border-black rotate-3 scale-105 cursor-grabbing overflow-hidden">
+                            <img src={draggedImage} alt={draggedText} className="w-full h-full object-cover pointer-events-none select-none" />
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center min-w-[120px] h-[60px] bg-white rounded-2xl shadow-[0_4px_0_0_rgba(0,0,0,1)] border-2 border-black rotate-3 scale-105 cursor-grabbing px-6">
+                            <span className="text-xl font-bold text-black">{draggedText}</span>
+                        </div>
+                    )
                 ) : null}
             </DragOverlay>
         </DndContext>

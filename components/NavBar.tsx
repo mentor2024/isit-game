@@ -2,24 +2,29 @@
 
 import Link from "next/link";
 import { User } from "@supabase/supabase-js";
-import { signOut } from "@/app/login/actions";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-
-export function NavBar({
+import { Star } from "lucide-react";
+export default function NavBar({
     user,
     role,
+    score = 0,
+    signOutAction,
 }: {
     user: User | null;
     role: string | null;
+    score?: number;
+    signOutAction: () => Promise<void>;
 }) {
     const pathname = usePathname();
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 pointer-events-none">
+        <nav className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 border-b transition-all duration-300
+            ${pathname === '/' ? 'bg-transparent border-transparent' : 'bg-white border-gray-200'}
+        `}>
             {/* Branding */}
-            <div className="pointer-events-auto">
-                <Link href="/poll" className="block hover:scale-105 transition-transform">
+            <div>
+                <Link href="/" className="block hover:scale-105 transition-transform">
                     <Image
                         src="/logo.png"
                         alt="IS IT? Game Logo"
@@ -32,29 +37,23 @@ export function NavBar({
             </div>
 
             {/* Navigation Links */}
-            <div className="pointer-events-auto flex items-center gap-4 bg-white/90 backdrop-blur-sm p-2 rounded-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="flex items-center gap-4">
+                {user && (
+                    <div className="flex items-center gap-1.5 bg-yellow-50 px-3 py-1.5 rounded-full border border-yellow-200 text-yellow-800 font-bold text-sm mr-2">
+                        <Star size={14} className="fill-yellow-500 text-yellow-500" />
+                        <span>{score}</span>
+                    </div>
+                )}
 
                 <Link
-                    href="/poll"
-                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pathname === '/poll'
-                            ? 'bg-black text-white'
-                            : 'hover:bg-gray-100'
+                    href="/"
+                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pathname === '/'
+                        ? 'bg-black text-white'
+                        : 'hover:bg-gray-100'
                         }`}
                 >
                     Polls
                 </Link>
-
-                {(role === "admin" || role === "superadmin") && (
-                    <Link
-                        href="/admin"
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pathname === '/admin'
-                                ? 'bg-black text-white'
-                                : 'hover:bg-gray-100'
-                            }`}
-                    >
-                        Admin
-                    </Link>
-                )}
 
                 <div className="w-[1px] h-6 bg-gray-200 mx-1"></div>
 
@@ -64,7 +63,20 @@ export function NavBar({
                         <span className="text-xs font-bold truncate max-w-[100px] hidden sm:inline-block text-gray-600">
                             {user.email}
                         </span>
-                        <form action={signOut}>
+
+                        {(role === "admin" || role === "superadmin") && (
+                            <>
+                                <span className="text-gray-300 text-xs">|</span>
+                                <Link
+                                    href="/admin"
+                                    className="text-sm font-bold hover:underline text-gray-900"
+                                >
+                                    Admin
+                                </Link>
+                            </>
+                        )}
+
+                        <form action={signOutAction}>
                             <button className="text-sm font-bold hover:underline text-red-600">
                                 Log Out
                             </button>
