@@ -28,7 +28,7 @@ export default function RichTextEditor({ value, onChange, label, placeholder }: 
     const formats = [
         'header',
         'bold', 'italic', 'underline', 'strike', 'blockquote',
-        'list', 'bullet',
+        'list',
         'link'
     ];
 
