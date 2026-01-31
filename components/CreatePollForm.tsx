@@ -159,8 +159,13 @@ export default function CreatePollForm({
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="font-bold">{pollType === 'multiple_choice' ? 'Question' : 'Instructions (General)'}</label>
-                        <input name="instructions" placeholder={pollType === 'multiple_choice' ? "e.g. What is the capital of France?" : "e.g. Assign these words correctly"} required className="border-2 border-black p-3 rounded-xl" />
+                        <input type="hidden" name="instructions" value={instructions} />
+                        <RichTextEditor
+                            label={pollType === 'multiple_choice' ? 'Question' : 'Instructions (General)'}
+                            value={instructions}
+                            onChange={setInstructions}
+                            placeholder={pollType === 'multiple_choice' ? "e.g. What is the capital of France?" : "e.g. Assign these words correctly"}
+                        />
                     </div>
 
                     {pollType !== 'quad_sorting' && pollType !== 'multiple_choice' && (
