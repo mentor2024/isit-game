@@ -8,7 +8,10 @@ import MultipleChoiceInterface from "@/components/MultipleChoiceInterface";
 import LevelCompleteScreen from "@/components/LevelCompleteScreen";
 import { ChevronRight, MoveRight } from "lucide-react";
 import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
 import { advanceLevel } from "@/app/(main)/poll/actions";
+import { getUserMetrics } from "@/lib/metrics";
+import { replaceMessageVariables } from "@/lib/messageUtils";
 
 export const dynamic = 'force-dynamic';
 
@@ -399,6 +402,9 @@ export default async function PollPage({
         title: "text-gray-900"
     };
 
+    let lastDq = 0;
+    let lastScore = 0;
+
     if (user && votedPollIds.length > 0) {
         // Find most recent vote
         const { data: latestVote } = await supabase
@@ -412,6 +418,20 @@ export default async function PollPage({
         if (latestVote) {
             console.log(`[PollPage] Previous Vote Found: Poll ${latestVote.poll_id}`);
 
+            // Fetch ALL votes for this specific poll to calculate LastDQ & LastScore correctly
+            const { data: pollVotes } = await supabase
+                .from("poll_votes")
+                .select("is_correct, points_earned")
+                .eq("user_id", user.id)
+                .eq("poll_id", latestVote.poll_id);
+
+            const totalVotesForPoll = pollVotes?.length || 0;
+            const wrongVotesForPoll = pollVotes?.filter(v => !v.is_correct).length || 0;
+            const pointsEarnedForPoll = pollVotes?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
+
+            lastDq = totalVotesForPoll > 0 ? (wrongVotesForPoll / totalVotesForPoll) : 0;
+            lastScore = pointsEarnedForPoll;
+
             // @ts-ignore
             if (latestVote.polls) {
                 // @ts-ignore
@@ -419,14 +439,8 @@ export default async function PollPage({
             }
 
             // Verify if previous poll was FULLY correct (all objects)
-            const { data: pollVotes } = await supabase
-                .from("poll_votes")
-                .select("is_correct")
-                .eq("user_id", user.id)
-                .eq("poll_id", latestVote.poll_id);
-
-            const allCorrect = pollVotes && pollVotes.length > 0 && pollVotes.every(v => v.is_correct);
-            console.log(`[PollPage] All Correct: ${allCorrect} (${pollVotes?.length} votes)`);
+            const allCorrect = wrongVotesForPoll === 0; // Simplified using filtered count
+            console.log(`[PollPage] All Correct: ${allCorrect} (${totalVotesForPoll} votes)`);
 
             if (allCorrect) {
                 if (activePoll.instructions_correct) {
@@ -453,6 +467,23 @@ export default async function PollPage({
             console.log(`[PollPage] No previous vote found despite votedPollIds existing.`);
         }
     }
+
+    // --- Metrics & Variable Substitution ---
+    let finalInstructions = displayInstructions || "";
+    if (user) {
+        // Fetch overall metrics
+        const metrics = await getUserMetrics(supabase, user.id);
+
+        // Combine with Last Poll metrics
+        finalInstructions = replaceMessageVariables(finalInstructions, {
+            dq: metrics.overallDq,
+            aq: metrics.aq,
+            pointTotal: metrics.rawScore,
+            lastDq: lastDq,
+            lastScore: lastScore
+        });
+    }
+    // ----------------------------------------
 
     // Helper: Simple seeded random number generator
     function createSeededRandom(seedStr: string) {
