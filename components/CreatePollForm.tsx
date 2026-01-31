@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPoll } from "@/app/admin/poll-actions";
 import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import RichTextEditor from "@/components/RichTextEditor";
 
 export default function CreatePollForm({
     defaultValues
@@ -17,6 +18,9 @@ export default function CreatePollForm({
     const [msg, setMsg] = useState("");
     const [obj1Side, setObj1Side] = useState("");
     const [obj2Side, setObj2Side] = useState("");
+
+    // Rich Text State
+    const [instructions, setInstructions] = useState("");
 
     const handleSideChange = (objNum: 1 | 2, side: "IS" | "IT") => {
         if (objNum === 1) {
@@ -85,7 +89,10 @@ export default function CreatePollForm({
             };
 
             setVal('title', '');
-            setVal('instructions', '');
+            setVal('title', '');
+
+            // Clear instructions state
+            setInstructions("");
 
             // Clear dynamic inputs logic
             // Because dynamic inputs are controlled by state 'mcResponseCount' but their values are native DOM, they clear if we reset form?
