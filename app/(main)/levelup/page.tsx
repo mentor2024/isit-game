@@ -5,6 +5,7 @@ import { createServerClient as createClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import IsItRails from "@/components/IsItRails";
 import { getUserMetrics } from "@/lib/metrics";
+import { replaceMessageVariables } from "@/lib/messageUtils";
 
 export const dynamic = 'force-dynamic';
 
@@ -61,12 +62,43 @@ export default async function LevelUpPage({
     // Fetch User Metrics (AQ & Overall DQ) - Real Data
     let awarenessQuotient = 0;
     let overallDq = 0;
+    let rawScore = 0;
 
     if (user) {
         // Pass serviceClient to ensure we can read the profile score
         const metrics = await getUserMetrics(serviceClient, user.id);
         awarenessQuotient = metrics.aq;
         overallDq = metrics.overallDq;
+        rawScore = metrics.rawScore;
+    }
+
+    // --- Fetch Last Poll Metrics (LastDQ / LastScore) ---
+    let lastDq = 0;
+    let lastScore = 0;
+
+    if (user) {
+        const { data: latestVote } = await supabase
+            .from("poll_votes")
+            .select("poll_id")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (latestVote) {
+            const { data: pollVotes } = await supabase
+                .from("poll_votes")
+                .select("is_correct, points_earned")
+                .eq("user_id", user.id)
+                .eq("poll_id", latestVote.poll_id);
+
+            const totalVotesForPoll = pollVotes?.length || 0;
+            const wrongVotesForPoll = pollVotes?.filter(v => !v.is_correct).length || 0;
+            const pointsEarnedForPoll = pollVotes?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
+
+            lastDq = totalVotesForPoll > 0 ? (wrongVotesForPoll / totalVotesForPoll) : 0;
+            lastScore = pointsEarnedForPoll;
+        }
     }
 
     const { data: config } = await supabase
@@ -107,7 +139,16 @@ export default async function LevelUpPage({
     }
 
     // Custom instructions or default
-    const instructionsText = config?.instructions || "Fantastic work! You've mastered this level.";
+    let instructionsText = config?.instructions || "Fantastic work! You've mastered this level.";
+
+    // Apply substitution to main instructions
+    instructionsText = replaceMessageVariables(instructionsText, {
+        dq: overallDq,
+        aq: awarenessQuotient,
+        pointTotal: rawScore,
+        lastDq,
+        lastScore
+    });
 
     // --- Dynamic Messaging Logic ---
     let dynamicTitle = undefined;
@@ -127,7 +168,13 @@ export default async function LevelUpPage({
 
         if (matched) {
             dynamicTitle = matched.title;
-            dynamicMessage = matched.message;
+            dynamicMessage = replaceMessageVariables(matched.message, {
+                dq: overallDq,
+                aq: awarenessQuotient,
+                pointTotal: 0, // Need to fix this
+                lastDq,
+                lastScore
+            });
             computedTier = matched.tier;
         }
     }
