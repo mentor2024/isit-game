@@ -418,13 +418,13 @@ export async function submitQuadVote(pollId: string, assignments: QuadAssignment
             return { success: true, correct: isCorrect, has_answer: true, nextPollId };
         }
 
-        const votes = assignments.map(a => ({
+        const votes = assignments.map((a, index) => ({
             poll_id: pollId,
             user_id: user.id,
             selected_object_id: a.objectId,
             chosen_side: a.side, // 'group_a' or 'group_b'
             is_correct: isCorrect, // Use calculated correctness based on RAW points
-            points_earned: pointsToAward // Use suppressed points for DB record to avoid leaderboard inflation
+            points_earned: index === 0 ? pointsToAward : 0 // FIX: Only award points to the first vote to prevent 4x inflation (since 4 objects are submitted)
         }));
 
         console.log(`[Action] Inserting ${votes.length} votes...`);
