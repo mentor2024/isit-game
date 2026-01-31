@@ -8,6 +8,7 @@ import MultipleChoiceInterface from "@/components/MultipleChoiceInterface";
 import LevelCompleteScreen from "@/components/LevelCompleteScreen";
 import { ChevronRight, MoveRight } from "lucide-react";
 import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { advanceLevel } from "@/app/(main)/poll/actions";
 
 export const dynamic = 'force-dynamic';
 

@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters"; // Assuming these exist, else use raw
 import confetti from "canvas-confetti";
 import { useEffect } from "react";
-import { advanceLevel } from "@/app/(main)/poll/actions";
-
 interface LevelCompleteScreenProps {
     stage: number;
     level: number;
@@ -18,6 +16,7 @@ interface LevelCompleteScreenProps {
     nextStage: number;
     nextLevel: number;
     isStageComplete?: boolean;
+    onAdvance?: (nextStage: number, nextLevel: number) => Promise<void>; // FIX: Pass action as prop
 }
 
 export default function LevelCompleteScreen({
@@ -30,7 +29,8 @@ export default function LevelCompleteScreen({
     tier,
     nextStage,
     nextLevel,
-    isStageComplete
+    isStageComplete,
+    onAdvance
 }: LevelCompleteScreenProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -49,7 +49,9 @@ export default function LevelCompleteScreen({
     const handleContinue = async () => {
         setLoading(true);
         try {
-            await advanceLevel(nextStage, nextLevel);
+            if (onAdvance) {
+                await onAdvance(nextStage, nextLevel);
+            }
             router.refresh();
         } catch (e) {
             console.error(e);
