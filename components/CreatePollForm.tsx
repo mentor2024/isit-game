@@ -21,6 +21,8 @@ export default function CreatePollForm({
 
     // Rich Text State
     const [instructions, setInstructions] = useState("");
+    const [instructionsCorrect, setInstructionsCorrect] = useState("");
+    const [instructionsIncorrect, setInstructionsIncorrect] = useState("");
 
     const handleSideChange = (objNum: 1 | 2, side: "IS" | "IT") => {
         if (objNum === 1) {
@@ -93,6 +95,8 @@ export default function CreatePollForm({
 
             // Clear instructions state
             setInstructions("");
+            setInstructionsCorrect("");
+            setInstructionsIncorrect("");
 
             // Clear dynamic inputs logic
             // Because dynamic inputs are controlled by state 'mcResponseCount' but their values are native DOM, they clear if we reset form?
@@ -172,18 +176,20 @@ export default function CreatePollForm({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex flex-col gap-2">
                                 <label className="font-bold text-green-700">Correct Answer Feedback</label>
-                                <textarea
-                                    name="instructions_correct"
+                                <input type="hidden" name="instructions_correct" value={instructionsCorrect} />
+                                <RichTextEditor
+                                    value={instructionsCorrect}
+                                    onChange={setInstructionsCorrect}
                                     placeholder="Message shown when they get it RIGHT"
-                                    className="border-2 border-green-200 p-3 rounded-xl min-h-[80px]"
                                 />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className="font-bold text-red-700">Incorrect Answer Feedback</label>
-                                <textarea
-                                    name="instructions_incorrect"
+                                <input type="hidden" name="instructions_incorrect" value={instructionsIncorrect} />
+                                <RichTextEditor
+                                    value={instructionsIncorrect}
+                                    onChange={setInstructionsIncorrect}
                                     placeholder="Message shown when they get it WRONG"
-                                    className="border-2 border-red-200 p-3 rounded-xl min-h-[80px]"
                                 />
                             </div>
                         </div>
