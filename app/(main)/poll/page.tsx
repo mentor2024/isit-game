@@ -300,6 +300,35 @@ export default async function PollPage({
                         }
                     }
 
+                    // --- Dynamic Messaging (PollPage) ---
+                    // Fetch config for messaging
+                    const { data: levelConfig } = await supabase
+                        .from('level_configurations')
+                        .select('*')
+                        .eq('stage', currentStage)
+                        .eq('level', currentLevel)
+                        .single();
+
+                    let dynamicTitle = undefined;
+                    let dynamicMessage = undefined;
+
+                    if (levelConfig?.score_tiers) {
+                        // Type definition for safety
+                        type ScoreTier = { min_score: number; tier: string; title?: string; message: string };
+                        const tiers = levelConfig.score_tiers as unknown as ScoreTier[];
+
+                        // We already calculated 'tier' (S/B/D).
+                        // Since Stage 0 uses 'tier' matching (because points logic is custom in code vs simple min_score in other places, though we could unify it),
+                        // let's try to find the message by TIER first, if available in the JSON structure.
+                        // Wait, our JSON structure is an Array of Objects { min_score, tier, title, message }.
+
+                        const matchedTier = tiers.find(t => t.tier === tier);
+                        if (matchedTier) {
+                            dynamicTitle = matchedTier.title;
+                            dynamicMessage = matchedTier.message;
+                        }
+                    }
+
                     return (
                         <LevelCompleteScreen
                             stage={currentStage}
@@ -312,6 +341,9 @@ export default async function PollPage({
                             nextStage={nextStage}
                             nextLevel={nextLevel}
                             isStageComplete={nextStage > currentStage}
+                            customTitle={dynamicTitle}
+                            customMessage={dynamicMessage}
+                            onAdvance={advanceLevel}
                         />
                     );
                 }
