@@ -30,6 +30,8 @@ export default function EditPollForm({
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState("");
     const [instructions, setInstructions] = useState(poll.instructions || "");
+    const [instructionsCorrect, setInstructionsCorrect] = useState(poll.instructions_correct || "");
+    const [instructionsIncorrect, setInstructionsIncorrect] = useState(poll.instructions_incorrect || "");
 
     // Sort objects by ID (which contains index)
     const objects = poll.poll_objects?.sort((a: any, b: any) => a.id.localeCompare(b.id)) || [];
@@ -78,20 +80,20 @@ export default function EditPollForm({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex flex-col gap-2">
                             <label className="font-bold text-green-700">Correct Answer Feedback</label>
-                            <textarea
-                                name="instructions_correct"
-                                defaultValue={poll.instructions_correct || ""}
+                            <input type="hidden" name="instructions_correct" value={instructionsCorrect} />
+                            <RichTextEditor
+                                value={instructionsCorrect}
+                                onChange={setInstructionsCorrect}
                                 placeholder="Message shown when they get it RIGHT"
-                                className="border-2 border-green-200 p-3 rounded-xl min-h-[80px]"
                             />
                         </div>
                         <div className="flex flex-col gap-2">
                             <label className="font-bold text-red-700">Incorrect Answer Feedback</label>
-                            <textarea
-                                name="instructions_incorrect"
-                                defaultValue={poll.instructions_incorrect || ""}
+                            <input type="hidden" name="instructions_incorrect" value={instructionsIncorrect} />
+                            <RichTextEditor
+                                value={instructionsIncorrect}
+                                onChange={setInstructionsIncorrect}
                                 placeholder="Message shown when they get it WRONG"
-                                className="border-2 border-red-200 p-3 rounded-xl min-h-[80px]"
                             />
                         </div>
                     </div>
