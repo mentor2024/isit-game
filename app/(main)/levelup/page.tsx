@@ -171,7 +171,7 @@ export default async function LevelUpPage({
             dynamicMessage = replaceMessageVariables(matched.message, {
                 dq: overallDq,
                 aq: awarenessQuotient,
-                pointTotal: 0, // Need to fix this
+                pointTotal: rawScore,
                 lastDq,
                 lastScore
             });
