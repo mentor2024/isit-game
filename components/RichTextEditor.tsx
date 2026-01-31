@@ -4,7 +4,16 @@ import dynamic from 'next/dynamic';
 import { Info, X } from 'lucide-react';
 import { useState } from 'react';
 
-// ... (imports remain)
+// Dynamic import to avoid SSR issues with Quill
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
+import 'react-quill-new/dist/quill.snow.css';
+
+interface RichTextEditorProps {
+    value: string;
+    onChange: (value: string) => void;
+    label?: string;
+    placeholder?: string;
+}
 
 export default function RichTextEditor({ value, onChange, label, placeholder }: RichTextEditorProps) {
     const [showVariables, setShowVariables] = useState(false);
