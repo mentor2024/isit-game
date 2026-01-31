@@ -17,6 +17,8 @@ interface LevelCompleteScreenProps {
     nextLevel: number;
     isStageComplete?: boolean;
     onAdvance?: (nextStage: number, nextLevel: number) => Promise<void>; // FIX: Pass action as prop
+    customTitle?: string;
+    customMessage?: string;
 }
 
 export default function LevelCompleteScreen({
@@ -30,7 +32,9 @@ export default function LevelCompleteScreen({
     nextStage,
     nextLevel,
     isStageComplete,
-    onAdvance
+    onAdvance,
+    customTitle,
+    customMessage
 }: LevelCompleteScreenProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -65,6 +69,17 @@ export default function LevelCompleteScreen({
         const isMiddleGroup = tier === 'B' || tier === 'C';
         const isBottomGroup = !isTopGroup && !isMiddleGroup;
 
+        // Fallback Defaults
+        const defaultTitle = isTopGroup ? "You Are Aware." :
+            isMiddleGroup ? "Potential Detected." :
+                "Thank You for Playing.";
+
+        const defaultMessage = isTopGroup ?
+            "Your results indicate a high level of awareness. You have the potential to excel in the ISIT Game. We invite you to join us and refine your skills further." :
+            isMiddleGroup ?
+                "You show promise, but your awareness requires further tuning. Keep practicing to unlock your full potential." :
+                "We appreciate your participation in the calibration phase. At this time, we are looking for a specific profile for the advanced stages.";
+
         return (
             <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 animate-in fade-in zoom-in duration-500">
                 <div className={`max-w-5xl w-full grid ${isBottomGroup ? 'grid-cols-1 max-w-xl' : 'grid-cols-1 md:grid-cols-2'} gap-8 items-stretch`}>
@@ -76,20 +91,11 @@ export default function LevelCompleteScreen({
                                 Calibration Complete
                             </span>
                             <h1 className="text-4xl font-black text-gray-900 mb-4 leading-tight">
-                                {isTopGroup ? "You Are Aware." :
-                                    isMiddleGroup ? "Potential Detected." :
-                                        "Thank You for Playing."}
+                                {customTitle || defaultTitle}
                             </h1>
-                            {/* DEBUG: Show Score to Explain Result */}
-                            <p className="text-xs font-mono text-gray-400 mb-2">
-                                CALIBRATION SCORE: {pointsEarned} POINTS (TIER: {tier})
-                            </p>
-                            <p className="text-lg text-gray-600 leading-relaxed">
-                                {isTopGroup ?
-                                    "Your results indicate a high level of awareness. You have the potential to excel in the ISIT Game. We invite you to join us and refine your skills further." :
-                                    isMiddleGroup ?
-                                        "You show promise, but your awareness requires further tuning. Keep practicing to unlock your full potential." :
-                                        "We appreciate your participation in the calibration phase. At this time, we are looking for a specific profile for the advanced stages."}
+
+                            <p className="text-lg text-gray-600 leading-relaxed whitespace-pre-wrap">
+                                {customMessage || defaultMessage}
                             </p>
                         </div>
 

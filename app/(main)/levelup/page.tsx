@@ -13,7 +13,7 @@ export default async function LevelUpPage({
 }: {
     searchParams: Promise<{ stage?: string; level?: string; bonus?: string; dq?: string; correct?: string; total?: string; points?: string }>
 }) {
-    const { stage, level, bonus, dq, correct, total, points } = await searchParams;
+    const { stage, level, bonus, dq, correct, total, points, tier } = await searchParams;
 
     // Parse stage/level or default to something
     const stageNum = stage ? parseInt(stage) : 1;
@@ -108,6 +108,32 @@ export default async function LevelUpPage({
 
     // Custom instructions or default
     const instructionsText = config?.instructions || "Fantastic work! You've mastered this level.";
+
+    // --- Dynamic Messaging Logic ---
+    let dynamicTitle = undefined;
+    let dynamicMessage = undefined;
+    let computedTier = "C"; // Default fallback
+
+    if (config?.score_tiers) {
+        // Type definition for safety
+        type ScoreTier = { min_score: number; tier: string; title?: string; message: string };
+        const tiers = config.score_tiers as unknown as ScoreTier[];
+
+        // Sort descending by min_score
+        const sortedTiers = [...tiers].sort((a, b) => b.min_score - a.min_score);
+
+        // Find match
+        const matched = sortedTiers.find(t => pointsNum >= t.min_score);
+
+        if (matched) {
+            dynamicTitle = matched.title;
+            dynamicMessage = matched.message;
+            computedTier = matched.tier;
+        }
+    }
+
+    // Override searchParams tier with computed tier if config exists (ensures consistency)
+    const displayTier = config?.score_tiers ? computedTier : (tier || 'C');
 
     // Level Scores Content (Left Rail)
     const LevelScoresContent = modules.includes('level_scores') ? (
