@@ -191,14 +191,26 @@ export async function resetUserProgress(formData: FormData) {
     const supabaseAdmin = createServiceRoleClient();
 
     // 1. Delete all votes
-    const { error: deleteError } = await supabaseAdmin
+    console.log(`[Admin] Resetting progress for user ${targetUserId}...`);
+
+    // Explicitly select to delete, returns count
+    const { count, error: deleteError } = await supabaseAdmin
         .from('poll_votes')
-        .delete()
+        .delete({ count: 'exact' }) // Request count
         .eq('user_id', targetUserId);
+
+    console.log(`[Admin] Deleted ${count} votes.`);
 
     if (deleteError) {
         console.error("Reset progress error (votes):", deleteError);
         redirect(`/admin/users/${targetUserId}?error=${encodeURIComponent(deleteError.message)}`);
+    }
+
+    // Double Check: Ensure count is 0
+    const { count: remaining } = await supabaseAdmin.from('poll_votes').select('*', { count: 'exact', head: true }).eq('user_id', targetUserId);
+    if (remaining && remaining > 0) {
+        console.error(`[Admin] CRITICAL: Votes remain after delete! Count: ${remaining}`);
+        // This implies a policy or trigger issue, or we missed some.
     }
 
     // 2. Reset Score to 0

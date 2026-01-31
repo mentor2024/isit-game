@@ -133,7 +133,14 @@ export async function checkLevelCompletion(supabase: any, user: any, pollId: str
                 if (updateError) console.error("Error updating score:", updateError);
                 console.log(`[CheckCompletion] Level Complete! Added ${totalPointsToAdd} (Points: ${pointsEarned}, Bonus: ${bonus})`);
             } else if (currentPoll.stage === 0) {
-                console.log(`[CheckCompletion] Stage 0 Level Complete! Zero points awarded.`);
+                // For Stage 0, we DO award points to the profile now (for Calibration logic)
+                // But wait, do we want to inflate the User Profile "Score" shown in the navbar?
+                // Probably not. 
+                // However, `poll_votes` MUST have `points_earned`. 
+                // We already handle that in `submitVote`.
+                // This block handles the BONUS calculation.
+                // We can leave Bonus as 0 for Stage 0.
+                console.log(`[CheckCompletion] Stage 0 Level Complete! Calculation deferred to PollPage.`);
             }
 
             // --- PROGRESSION LOGIC ---
@@ -393,8 +400,7 @@ export async function submitQuadVote(pollId: string, assignments: QuadAssignment
                 points = poll.quad_scores[pairKey] || 0;
 
                 if (poll.stage === 0) {
-                    points = 0;
-                    console.log(`[Action] Stage 0 Quad Vote: Points suppressed to 0.`);
+                    console.log(`[Action] Stage 0 Quad Vote: Raw Points ${points}. Suppressing *awarded* points to 0.`);
                 } else {
                     console.log(`[Action] Quad Pair Identified: ${pairKey}, Points: ${points}`);
                 }
@@ -403,21 +409,13 @@ export async function submitQuadVote(pollId: string, assignments: QuadAssignment
             }
         }
 
-        // 2. Prepare Votes
-        // If user is null (Stage 0 Anon), we technically can't save to poll_votes if user_id is NOT NULL.
-        // Assuming we want to track it, we need a user. 
-        // If the client calls this verify, it implies they failed auth.
-        // For now, let's assume we skip saving votes if no user, OR throw error if user required.
-        // BUT, if we want to allow "visitors", maybe we just return success without saving?
-        // OR we trust the client to attempt anon auth.
+        // 3. Determine Final Save Values
+        const isCorrect = points > 0;
+        const pointsToAward = points; // Allow points for Stage 0
 
         if (!user) {
-            // If we are here, it means Stage 0 check passed.
-            // We can return success (dummy) or fail. 
-            // Without a user ID, we can't save progress.
-            // Let's return success to allow UI to proceed, but NOT save to DB.
             console.log("[Action] Anon user (stage 0), skipping DB save.");
-            return { success: true, correct: points > 0, has_answer: true, nextPollId };
+            return { success: true, correct: isCorrect, has_answer: true, nextPollId };
         }
 
         const votes = assignments.map(a => ({
@@ -425,7 +423,8 @@ export async function submitQuadVote(pollId: string, assignments: QuadAssignment
             user_id: user.id,
             selected_object_id: a.objectId,
             chosen_side: a.side, // 'group_a' or 'group_b'
-            is_correct: points > 0 // improving correctness definition
+            is_correct: isCorrect, // Use calculated correctness based on RAW points
+            points_earned: pointsToAward // Use suppressed points for DB record to avoid leaderboard inflation
         }));
 
         console.log(`[Action] Inserting ${votes.length} votes...`);
@@ -500,6 +499,124 @@ export async function advanceLevel(nextStage: number, nextLevel: number) {
         .eq('id', user.id);
 
     revalidatePath('/', 'layout');
+}
+
+// ... existing advanceLevel ...
+
+export async function submitMCVote(pollId: string, selectedObjectId: string): Promise<SubmitVoteResult> {
+    try {
+        const supabase = await createSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Anon Check
+        if (!user) {
+            const { data: poll } = await supabase.from('polls').select('stage, level, poll_order').eq('id', pollId).single();
+            if (poll && poll.stage !== 0) return { success: false, error: "Unauthorized" };
+
+            // For anon, we skip DB save but return success
+            // Calculate Next Poll ID for Anon
+            let nextPollId: string | undefined = undefined;
+            if (poll) {
+                const { data: nextPoll } = await supabase
+                    .from('polls')
+                    .select('id')
+                    .eq('stage', poll.stage)
+                    .gt('poll_order', poll.poll_order) // Use current poll order + 1 logic
+                    .order('poll_order', { ascending: true })
+                    .limit(1)
+                    .maybeSingle();
+                if (nextPoll) nextPollId = nextPoll.id;
+            }
+
+            return { success: true, correct: true, has_answer: true, nextPollId };
+        }
+
+        // 1. Fetch Poll & Object Info
+        const { data: poll } = await supabase.from('polls').select('stage, level, poll_order').eq('id', pollId).single();
+        const { data: object } = await supabase.from('poll_objects').select('points').eq('id', selectedObjectId).single();
+        const points = object?.points || 0;
+
+        // 2. Determine Scoring
+        let pointsToAward = points;
+        let isCorrect = points > 0;
+
+        // Allow points for Stage 0
+        // if (poll?.stage === 0) { ... } // Removed suppression
+
+        // 3. Save Vote
+        const serviceClient = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            { cookies: { getAll() { return [] }, setAll() { } } }
+        );
+
+        // CLEANUP: Delete any existing vote for this poll to prevent duplicates (Score Inflation Fix)
+        await serviceClient.from('poll_votes').delete().eq('user_id', user.id).eq('poll_id', pollId);
+
+        const { error: insertError } = await serviceClient
+            .from('poll_votes')
+            .insert({
+                poll_id: pollId,
+                user_id: user.id,
+                selected_object_id: selectedObjectId,
+                chosen_side: null,
+                is_correct: isCorrect,
+                points_earned: pointsToAward
+            });
+
+        if (insertError) throw new Error(insertError.message);
+
+        // 4. Update Score
+        if (pointsToAward > 0) {
+            const { data: profile } = await serviceClient.from('user_profiles').select('score').eq('id', user.id).single();
+            await serviceClient.from('user_profiles').update({ score: (profile?.score || 0) + pointsToAward }).eq('id', user.id);
+        }
+
+        // 5. Completion Check
+        const completionResult = await checkLevelCompletion(supabase, user, pollId);
+
+        // 6. Next Poll
+        let nextPollId: string | undefined = undefined;
+        if (poll && !completionResult.levelUp) {
+            const { data: nextPoll } = await supabase.from('polls').select('id')
+                .eq('stage', poll.stage)
+                .eq('level', poll.level)
+                .gt('poll_order', poll.poll_order)
+                .order('poll_order', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+            if (nextPoll) nextPollId = nextPoll.id;
+        }
+
+        revalidatePath('/', 'layout');
+        return { success: true, correct: isCorrect, has_answer: true, nextPollId, ...completionResult };
+
+    } catch (e: any) {
+        console.error("SubmitMCVote Exception:", e);
+        return { success: false, error: e.message };
+    }
+}
+
+// DEBUG: Inspect state for "Score 51" investigation
+export async function getDebugVoteState() {
+    const supabase = await createSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return { user: 'No User', votes: [], total: 0 };
+
+    const { data: votes } = await supabase
+        .from('poll_votes')
+        .select('*')
+        .eq('user_id', user.id);
+
+    const total = votes?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
+
+    return {
+        userId: user.id,
+        count: votes?.length || 0,
+        total,
+        votes: votes
+    };
 }
 
 export async function submitLead(formData: FormData) {

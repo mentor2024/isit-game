@@ -111,8 +111,8 @@ export default async function EditPollPage({ params }: { params: Promise<{ id: s
                         </div>
                     </div>
 
-                    {/* Objects Editing (Only if no votes) */}
-                    {voteCount === 0 ? (
+                    {/* Objects Editing (Allow if no votes OR if Stage 0) */}
+                    {voteCount === 0 || poll.stage === 0 ? (
                         <>
                             <hr className="border-black/10" />
                             <div className={`grid gap-6 ${poll.type === 'quad_sorting' ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2'}`}>

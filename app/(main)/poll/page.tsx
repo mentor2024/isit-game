@@ -108,9 +108,16 @@ export default async function PollPage({
             console.log(`[PollPage] Voted Poll IDs count: ${votedPollIds.length}`);
 
             // 3. Fetch a poll NOT in that list, specific to CURRENT STAGE/LEVEL
-            let query = supabase
+            // Use serviceClient if available (robustness), otherwise fallback to supabase (auth context)
+            // Actually, we defined serviceClient above in the if(serviceKey) block only.
+
+            let queryTarget = (hasServiceKey && voteError === null)
+                ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } })
+                : supabase;
+
+            let query = queryTarget
                 .from("polls")
-                .select("*, poll_objects(*)")
+                .select("*, poll_objects(id, text, image_url, points, correct_side)")
                 .eq('stage', currentStage)
                 .eq('level', currentLevel)
                 .order('poll_order', { ascending: true })
@@ -133,14 +140,30 @@ export default async function PollPage({
 
     } else {
         // Fallback for Anon (Stage 0 Level 1 default)
-        const { data } = await supabase
+        // Use SERVICE ROLE to ensure points are fetched (bypassing specific RLS caching issues on server)
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+        const serviceClient = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            serviceKey,
+            { auth: { persistSession: false } }
+        );
+
+        const { data } = await serviceClient
             .from("polls")
-            .select("*, poll_objects(*)")
+            .select("*, poll_objects(id, text, image_url, points, correct_side)")
             .eq('stage', 0)
             .eq('level', 1)
             .order('poll_order', { ascending: true })
             .limit(1)
             .maybeSingle();
+
+        if (data && data.poll_objects) {
+            console.log(`[PollPage] Anon Service Fetch: Found ${data.poll_objects.length} objects.`);
+            data.poll_objects.forEach((o: any) => console.log(`   - Obj ${o.id}: POINTS=${o.points}`));
+        } else {
+            console.log(`[PollPage] Anon Service Fetch: NO DATA or NO OBJECTS.`);
+        }
+
         activePoll = data;
     }
 
@@ -234,15 +257,26 @@ export default async function PollPage({
                         dq = totalVotes > 0 ? wrong / totalVotes : 0;
 
                         if (currentStage === 0) {
-                            // Stage 0: Evaluate based on Accuracy % since points are 0
-                            // 3 Groups: Top (>80%), Middle (50-79%), Bottom (<50%)
-                            const accuracy = totalVotes > 0 ? (totalCorrect / totalVotes) : 0;
+                            // Stage 0: Evaluate based on Total Points
+                            // Fetch points from votes - Use robust two-step query like final calculation
+                            const { data: votePoints } = await supabase
+                                .from('poll_votes')
+                                .select('points_earned')
+                                .eq('user_id', user.id)
+                                .in('poll_id', allPollIds);
 
-                            if (accuracy >= 0.8) tier = 'S';      // Group 1
-                            else if (accuracy >= 0.5) tier = 'B'; // Group 2
-                            else tier = 'D';                      // Group 3
+                            const totalPoints = votePoints?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
+                            pointsEarned = totalPoints;
 
-                            // Points remain 0 for display
+                            console.log(`[PollPage] Stage 0 Calc: Total Points = ${totalPoints}`);
+
+                            // Thresholds:
+                            // Top (S): > 25
+                            // Middle (B): 16 - 25
+                            // Bottom (D): < 16
+                            if (totalPoints > 25) tier = 'S';       // Group 1
+                            else if (totalPoints >= 16) tier = 'B'; // Group 2 (16-25)
+                            else tier = 'D';                        // Group 3 (<16)
                         } else {
                             // Standard Scoring
                             pointsEarned = Math.floor((totalCorrect / 2) * currentStage * currentLevel);
@@ -394,8 +428,10 @@ export default async function PollPage({
         }
     }
 
-    const seedString = `${activePoll.id}-${user ? user.id : 'anon'}`;
-    const rng = createSeededRandom(seedString);
+    // Seeded Random removed to allow fresh randomization on reload
+    // const seedString = `${activePoll.id}-${user ? user.id : 'anon'}`;
+    // const rng = createSeededRandom(seedString);
+    const rng = Math.random;
 
     // Randomize Words (Objects)
     const objects = activePoll.poll_objects ? [...activePoll.poll_objects] : [];
@@ -431,6 +467,33 @@ export default async function PollPage({
 
     const nextPollId = nextPoll?.id;
 
+    // --- DEBUG: Calculate Current Stage Score for Display ---
+    let pointsEarnedInStage = 0;
+    if (user) {
+        // 1. Get all poll IDs for this stage first (Robustness over Joins)
+        // Use SERVICE ROLE to ensure we find the polls regardless of weird RLS
+        const serviceClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+
+        const { data: stagePolls } = await serviceClient
+            .from('polls')
+            .select('id')
+            .eq('stage', activePoll?.stage ?? 0);
+
+        const stagePollIds = stagePolls?.map(p => p.id) || [];
+
+        if (stagePollIds.length > 0) {
+            const { data: stageVotes } = await supabase
+                .from('poll_votes')
+                .select('points_earned')
+                .eq('user_id', user.id)
+                .in('poll_id', stagePollIds);
+
+            pointsEarnedInStage = stageVotes?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
+            console.log(`[PollPage] Running Total for Stage ${activePoll?.stage}: ${pointsEarnedInStage} (Votes: ${stageVotes?.length})`);
+        }
+    }
+    // --------------------------------------------------------
+
     return (
         <div className="min-h-screen flex flex-col items-center justify-start pt-4 bg-gray-50 p-4 relative space-y-4">
             <div className="w-full max-w-xl flex items-center gap-2 text-sm font-bold text-black justify-center">
@@ -463,6 +526,7 @@ export default async function PollPage({
                         poll={activePoll}
                         userId={user?.id || 'anon'}
                         nextPollId={nextPollId}
+                        currentStageScore={pointsEarnedInStage}
                     />
                 ) : activePoll.type === 'quad_sorting' ? (
                     <QuadGroupingInterface

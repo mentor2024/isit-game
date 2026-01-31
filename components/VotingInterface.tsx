@@ -168,13 +168,16 @@ export default function VotingInterface({ pollId, objects, sides }: VotingInterf
     const unassignedObjects = objects.filter(o => !assignments[o.id]);
 
     const handleSubmit = async () => {
+        console.log("Submit clicked");
         setLoading(true);
         setMessage("");
         const supabase = createClient();
 
         try {
+            console.log("Checking session...");
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
+                console.log("No session, signing in anonymously...");
                 const { error: authError } = await supabase.auth.signInAnonymously();
                 if (authError) throw new Error("Could not sign in.");
             }
@@ -184,25 +187,37 @@ export default function VotingInterface({ pollId, objects, sides }: VotingInterf
 
             if (!isObject || !itObject) throw new Error("Please assign both words.");
 
+            console.log("Importing action...");
             const { submitVote } = await import("@/app/(main)/poll/actions");
 
+            console.log("Calling submitVote...");
             const result = await submitVote(pollId, isObject.id, itObject.id);
+            console.log("Result:", result);
 
             if (!result.success) {
                 throw new Error(result.error || "Submission failed");
             }
 
             if (result.levelUp) {
+                console.log("Level Up! Redirecting...");
                 setMessage("Level Complete! 🎉");
                 await new Promise(r => setTimeout(r, 1000));
-                window.location.href = `/levelup?stage=${result.stage}&level=${result.level}&bonus=${result.bonus || 0}&dq=${result.dq || 0}&correct=${result.correctPolls || 0}&total=${result.totalPolls || 0}&points=${result.points || 0}`;
+
+                // For Stage 0, go directly to Home to show Calibration Results
+                if (result.stage === 0) {
+                    window.location.href = '/poll';
+                } else {
+                    window.location.href = `/levelup?stage=${result.stage}&level=${result.level}&bonus=${result.bonus || 0}&dq=${result.dq || 0}&correct=${result.correctPolls || 0}&total=${result.totalPolls || 0}&points=${result.points || 0}`;
+                }
                 return;
             }
 
+            console.log("Refreshing...");
             setMessage("");
             router.refresh();
 
         } catch (e: any) {
+            console.error("Submit Error:", e);
             setMessage(`Error: ${e.message}`);
         } finally {
             setLoading(false);

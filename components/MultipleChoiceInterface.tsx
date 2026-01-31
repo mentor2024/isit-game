@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { submitMCVote } from "@/app/(main)/poll/actions";
+import GlobalDebugInfo from "@/components/GlobalDebugInfo";
 
 interface PollObject {
     id: string;
@@ -18,71 +20,130 @@ interface MultipleChoiceInterfaceProps {
         title: string;
         instructions: string | null;
         poll_objects: PollObject[];
+        stage: number;
     };
     userId: string;
     nextPollId?: string;
+    currentStageScore?: number;
 }
 
-export default function MultipleChoiceInterface({ poll, userId, nextPollId }: MultipleChoiceInterfaceProps) {
+export default function MultipleChoiceInterface({ poll, userId, nextPollId, currentStageScore }: MultipleChoiceInterfaceProps) {
     const router = useRouter();
     // const { nextPollId } = usePollNavigation(); // removed
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [completed, setCompleted] = useState(false);
+    const [shuffledObjects, setShuffledObjects] = useState<PollObject[]>([]);
 
-    // Randomize options on mount (or when poll changes)
-    const shuffledObjects = useMemo(() => {
-        return [...poll.poll_objects].sort(() => Math.random() - 0.5);
+    useEffect(() => {
+        setShuffledObjects([...poll.poll_objects].sort(() => Math.random() - 0.5));
     }, [poll.id]);
+
+    // State for Client-Side Override (Fixing Server Data Issues)
+    const [clientObjects, setClientObjects] = useState<any[] | null>(null);
+    const [clientScore, setClientScore] = useState<number>(0);
+    const [loadingData, setLoadingData] = useState(false);
+
+    // Initial objects: use client override if available, otherwise props (server)
+    const effectiveObjects = clientObjects || (shuffledObjects.length > 0 ? shuffledObjects : poll.poll_objects);
+
+    useEffect(() => {
+        const loadClientData = async () => {
+            const supabase = createClient();
+
+            // 1. Ensure Auth (and get user ID)
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                console.log("[MultipleChoice] No user found. Signing in anonymously...");
+                await supabase.auth.signInAnonymously();
+                router.refresh();
+                return; // Will reload
+            }
+
+            // 2. Fetch Poll Objects (with POINTS) directly
+            // This fixes the "0 Points" display issue
+            const { data: pollData } = await supabase
+                .from('polls')
+                .select('poll_objects(id, text, points, image_url)')
+                .eq('id', poll.id)
+                .single();
+
+            if (pollData?.poll_objects) {
+                console.log("[MultipleChoice] Client Data Loaded:", pollData.poll_objects);
+                // Shuffle logic for client data
+                const objs = [...pollData.poll_objects];
+                for (let i = objs.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [objs[i], objs[j]] = [objs[j], objs[i]];
+                }
+                setClientObjects(objs);
+            }
+
+            // 3. Fetch Stage Score (Running Total) directly
+            // This fixes the "Stage Score: 0" display issue
+            if (poll.stage === 0) {
+                // Get all Stage 0 polls
+                const { data: stagePolls } = await supabase.from('polls').select('id').eq('stage', 0);
+                const pollIds = stagePolls?.map(p => p.id) || [];
+
+                if (pollIds.length > 0) {
+                    const { data: votes } = await supabase
+                        .from('poll_votes')
+                        .select('points_earned')
+                        .eq('user_id', user.id)
+                        .in('poll_id', pollIds);
+
+                    const total = votes?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
+                    setClientScore(total);
+                }
+            }
+        };
+
+        loadClientData();
+    }, [poll.id, poll.stage, router]); // Depend on Poll ID
 
     const handleSubmit = async () => {
         if (!selectedId) return;
         setSubmitting(true);
         setError(null);
+        console.log("Submitting MC Vote...", selectedId);
 
         try {
-            const supabase = createClient();
+            console.log("Calling submitMCVote...");
+            // Add safety timeout
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Request timed out")), 10000));
+            const resultPromise = submitMCVote(poll.id, selectedId);
 
-            // Insert Vote
-            // Since we relaxed the constraint, we can just insert chosen_side=NULL (or 'selection') and selected_object_id=selectedId
-            // BUT wait, submitVote action in actions.ts expects 'IS' or 'IT' and validates against correct_side.
-            // MC Polls don't have "correct" answers in the same way, or maybe they do?
-            // The user spec said "Disambiguator", aimed at gathering data. No wrong answer?
-            // "Validation: Is there one correct answer or multiple? -> User didn't specify, but implied subjective choices."
-            // So we'll treat it as survey mode (always correct / no feedback, just next).
+            const result = await Promise.race([resultPromise, timeoutPromise]) as any;
+            console.log("Result:", result);
 
-            const { error: insertError } = await supabase
-                .from('poll_votes')
-                .upsert({
-                    poll_id: poll.id,
-                    user_id: userId,
-                    selected_object_id: selectedId,
-                    chosen_side: null // Must allow null via migration
-                }, { onConflict: 'user_id, poll_id, selected_object_id' }); // Conflict? logic might fail if we voted differently on same object?
-            // Actually constraint is unique(user_id, poll_id, selected_object_id).
-            // If we change mind, we insert new row?
-            // Multiple Choice usually implies 1 vote per poll.
-            // The constraint on (user, poll, object) means we can vote for Object A, then Object B?
-            // That would allow multiple selection.
-            // If we want Single Selection, we might need to delete previous votes or constraint (user, poll).
-            // For now, let's assume we just insert.
-
-            if (insertError) throw insertError;
+            if (!result.success) {
+                throw new Error(result.error);
+            }
 
             setCompleted(true);
+            console.log("Vote saved. Transitioning...");
 
-            // Auto-advance after small delay
-            setTimeout(() => {
-                if (nextPollId) {
-                    router.push(`/polls/${nextPollId}`);
+            if (result.nextPollId) {
+                console.log("Going to next poll:", result.nextPollId);
+                router.push(`/polls/${result.nextPollId}`);
+            } else if (result.levelUp) {
+                console.log("Level Up! Stage:", result.stage);
+                // For Stage 0, go directly to Home to show Calibration Results. For others, show Level Up Animation.
+                if (result.stage === 0) {
+                    window.location.href = '/poll'; // Force reload to trigger LevelCompleteScreen in PollPage
                 } else {
-                    router.push('/poll');
+                    window.location.href = `/levelup?stage=${result.stage}&level=${result.level}&bonus=${result.bonus || 0}&dq=${result.dq || 0}&correct=${result.correctPolls || 0}&total=${result.totalPolls || 0}&points=${result.points || 0}`;
                 }
-                router.refresh(); // Ensure state updates
-            }, 1000);
+            } else {
+                console.log("Returning to home...");
+                router.push('/poll');
+            }
+            router.refresh();
 
         } catch (e: any) {
+            console.error("MC Submit Error:", e);
             setError(e.message);
             setSubmitting(false);
         }
@@ -91,7 +152,7 @@ export default function MultipleChoiceInterface({ poll, userId, nextPollId }: Mu
     return (
         <div className="flex flex-col items-center justify-center max-w-2xl mx-auto w-full px-4 py-8">
             <div className="w-full flex flex-col gap-4">
-                {shuffledObjects.map((obj) => (
+                {effectiveObjects.map((obj: any) => (
                     <button
                         key={obj.id}
                         onClick={() => !completed && setSelectedId(obj.id)}
@@ -103,7 +164,13 @@ export default function MultipleChoiceInterface({ poll, userId, nextPollId }: Mu
                             }
                         `}
                     >
-                        <span className="text-lg font-medium">{obj.text}</span>
+                        <div className="flex flex-col">
+                            <span className="text-lg font-medium">{obj.text}</span>
+                            {/* DEBUG: Show Points */}
+                            <span className={`text-xs font-bold uppercase ${selectedId === obj.id ? 'text-gray-300' : 'text-gray-400'}`}>
+                                {obj.points !== undefined ? `${obj.points} Points` : '0 Points'}
+                            </span>
+                        </div>
 
                         {/* Radio Circle Indicator */}
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center
@@ -119,7 +186,7 @@ export default function MultipleChoiceInterface({ poll, userId, nextPollId }: Mu
 
             {error && <p className="text-red-500 mt-4">{error}</p>}
 
-            <div className="mt-8 flex justify-center">
+            <div className="mt-8 flex flex-col items-center gap-4">
                 <button
                     onClick={handleSubmit}
                     disabled={!selectedId || submitting || completed}
@@ -127,7 +194,49 @@ export default function MultipleChoiceInterface({ poll, userId, nextPollId }: Mu
                 >
                     {submitting ? "Saving..." : (completed ? "Saved!" : "Confirm Selection")}
                 </button>
+
+                {/* DEBUG: Running Total */}
+                <div className="text-sm font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
+                    Stage Score: {clientScore} (Client) / {poll.id ? (currentStageScore || 0) : 0} (Server)
+                </div>
+
+                <GlobalDebugInfo />
+
+                {/* SUPER DEBUG: Raw Object Data */}
+                <details className="w-full text-xs text-left bg-gray-100 p-2 rounded mt-4">
+                    <summary>Server Data Dump</summary>
+                    <pre>{JSON.stringify(poll.poll_objects, null, 2)}</pre>
+                </details>
+
+                <DebugClientFetch pollId={poll.id} />
             </div>
         </div>
+    );
+}
+
+function DebugClientFetch({ pollId }: { pollId: string }) {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchIt = async () => {
+            const supabase = createClient();
+            const { data: poll, error } = await supabase
+                .from('polls')
+                .select('*, poll_objects(id, text, points)')
+                .eq('id', pollId)
+                .single();
+            if (error) setData({ error });
+            else setData(poll?.poll_objects);
+            setLoading(false);
+        };
+        fetchIt();
+    }, [pollId]);
+
+    return (
+        <details className="w-full text-xs text-left bg-blue-50 p-2 rounded mt-2 border border-blue-200">
+            <summary className="font-bold text-blue-800">Client-Side Fetch (Direct DB)</summary>
+            <pre className="text-blue-900">{loading ? "Loading..." : JSON.stringify(data, null, 2)}</pre>
+        </details>
     );
 }

@@ -29,11 +29,11 @@ async function getUserAndRole() {
 
     const { data: profile } = await serviceClient
         .from('user_profiles')
-        .select('role, score')
+        .select('role, score, current_stage')
         .eq('id', user.id)
         .single();
 
-    return { user, role: profile?.role, score: profile?.score || 0 };
+    return { user, role: profile?.role, score: profile?.score || 0, currentStage: profile?.current_stage ?? 0 };
 }
 
 import { signOut } from "./login/actions";
@@ -46,18 +46,21 @@ export default async function MainLayout({
     let user = null;
     let role = null;
     let score = 0;
+    let currentStage = 0; // Default to 0 (Stage Zero/Anon)
+
     try {
         const data = await getUserAndRole();
         user = data.user;
         role = data.role;
         score = data.score;
+        currentStage = data.currentStage;
     } catch (error) {
         console.error("Error in MainLayout:", error);
     }
 
     return (
         <>
-            <NavBar user={user} role={role} score={score} signOutAction={signOut} />
+            <NavBar user={user} role={role} score={score} currentStage={currentStage} signOutAction={signOut} />
             <div className="pt-20">
                 {children}
             </div>

@@ -25,10 +25,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-lg text-gray-600">A brief moment of reflection.</p>
-          <p className="text-lg text-gray-600 font-bold">No sign-up required.</p>
-        </div>
+        <p className="text-lg text-gray-600 font-bold">No sign-up required.</p>
 
         <Link href="/poll" className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-200 bg-gradient-to-r from-[#EFBF04] to-[#C29B0C] rounded-full hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 shadow-xl">
           <span>Begin Your Awareness Check</span>

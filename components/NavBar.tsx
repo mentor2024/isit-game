@@ -9,85 +9,87 @@ export default function NavBar({
     user,
     role,
     score = 0,
+    currentStage = 0,
     signOutAction,
 }: {
     user: User | null;
     role: string | null;
     score?: number;
+    currentStage?: number;
     signOutAction: () => Promise<void>;
 }) {
     const pathname = usePathname();
 
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 border-b transition-all duration-300
-            ${pathname === '/' ? 'bg-transparent border-transparent' : 'bg-white border-gray-200'}
+        <nav className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 transition-all duration-300
+            ${pathname === '/'
+                ? 'bg-transparent border-transparent py-6'
+                : 'bg-[url(/nav_bg.jpg)] bg-cover bg-center border-b border-gray-200 py-4 shadow-md'}
         `}>
-            {/* Branding */}
-            <div>
+            {/* Left Spacer (for centering) */}
+            <div className="flex-1 hidden md:block" />
+
+            {/* Branding - Centered */}
+            <div className="flex-shrink-0">
                 <Link href="/" className="block hover:scale-105 transition-transform">
                     <Image
-                        src="/logo.png"
-                        alt="IS IT? Game Logo"
-                        width={120}
-                        height={40}
-                        className="h-10 w-auto object-contain"
+                        src="/isit_logo_full.png"
+                        alt="The ISIT Game"
+                        width={300}
+                        height={100}
+                        className={`${pathname === '/' ? 'h-24' : 'h-12'} w-auto object-contain transition-all duration-300`}
                         priority
                     />
                 </Link>
             </div>
 
-            {/* Navigation Links */}
-            <div className="flex items-center gap-4">
-                {user && (
+            {/* Navigation Links - Right Aligned */}
+            <div className="flex items-center gap-4 flex-1 justify-end">
+                {/* Score: Only show if User AND Stage > 0 */}
+                {user && currentStage > 0 && (
                     <div className="flex items-center gap-1.5 bg-yellow-50 px-3 py-1.5 rounded-full border border-yellow-200 text-yellow-800 font-bold text-sm mr-2">
                         <Star size={14} className="fill-yellow-500 text-yellow-500" />
                         <span>{score}</span>
                     </div>
                 )}
 
-                <Link
-                    href="/"
-                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pathname === '/'
-                        ? 'bg-black text-white'
-                        : 'hover:bg-gray-100'
-                        }`}
-                >
-                    Polls
-                </Link>
-
-                <div className="w-[1px] h-6 bg-gray-200 mx-1"></div>
+                {/* Polls Link: Only show if Stage > 0 */}
+                {currentStage > 0 && (
+                    <Link
+                        href="/"
+                        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pathname === '/'
+                            ? 'bg-black text-white'
+                            : 'hover:bg-gray-100'
+                            }`}
+                    >
+                        Polls
+                    </Link>
+                )}
 
                 {/* User Actions */}
                 {user ? (
                     <div className="flex items-center gap-3 pl-2">
-                        <span className="text-xs font-bold truncate max-w-[100px] hidden sm:inline-block text-gray-600">
-                            {user.email}
-                        </span>
+                        {role === 'admin' || role === 'superadmin' ? (
+                            <Link href="/admin" className="text-sm font-bold hover:underline">
+                                Admin
+                            </Link>
+                        ) : null}
 
-                        {(role === "admin" || role === "superadmin") && (
-                            <>
-                                <span className="text-gray-300 text-xs">|</span>
-                                <Link
-                                    href="/admin"
-                                    className="text-sm font-bold hover:underline text-gray-900"
-                                >
-                                    Admin
-                                </Link>
-                            </>
+                        {!user.is_anonymous && (
+                            <span className="text-xs font-bold truncate max-w-[100px] hidden sm:inline-block text-gray-600">
+                                {user.email}
+                            </span>
                         )}
 
                         <form action={signOutAction}>
-                            <button className="text-sm font-bold hover:underline text-red-600">
-                                Log Out
+                            <button className="text-sm font-medium hover:text-gray-600 transition-colors">
+                                Sign Out
                             </button>
                         </form>
                     </div>
                 ) : (
-                    <Link
-                        href="/login"
-                        className="px-4 py-1.5 rounded-full bg-black text-white text-sm font-bold hover:scale-105 transition-transform"
-                    >
-                        Log In
+                    <Link href="/login" className="text-sm font-medium hover:underline">
+                        Login
                     </Link>
                 )}
             </div>

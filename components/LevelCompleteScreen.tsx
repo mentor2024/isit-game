@@ -78,6 +78,10 @@ export default function LevelCompleteScreen({
                                     isMiddleGroup ? "Potential Detected." :
                                         "Thank You for Playing."}
                             </h1>
+                            {/* DEBUG: Show Score to Explain Result */}
+                            <p className="text-xs font-mono text-gray-400 mb-2">
+                                CALIBRATION SCORE: {pointsEarned} POINTS (TIER: {tier})
+                            </p>
                             <p className="text-lg text-gray-600 leading-relaxed">
                                 {isTopGroup ?
                                     "Your results indicate a high level of awareness. You have the potential to excel in the ISIT Game. We invite you to join us and refine your skills further." :
