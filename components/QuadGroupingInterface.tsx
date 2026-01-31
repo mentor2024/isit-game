@@ -136,10 +136,26 @@ export default function QuadGroupingInterface({ pollId, objects }: QuadGroupingI
 
         if (targetId === "unsorted") newGroup = null;
 
-        if (newGroup !== undefined) {
+        if (newGroup) {
+            // FIX: Enforce Max 2 items per group
+            const currentCount = Object.values(assignments).filter(g => g === newGroup).length;
+            const isMovingWithinGroup = assignments[objectId] === newGroup;
+
+            if (currentCount >= 2 && !isMovingWithinGroup) {
+                // Determine group name for user feedback (optional console log for now)
+                console.log(`[QuadGrouping] Cannot add to ${newGroup}: Group is full (max 2).`);
+                return; // START REFUSAL
+            }
+
             setAssignments(prev => ({
                 ...prev,
                 [objectId]: newGroup
+            }));
+        } else if (newGroup === null) {
+            // Allow moving back to unsorted
+            setAssignments(prev => ({
+                ...prev,
+                [objectId]: null
             }));
         }
     };
