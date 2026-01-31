@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { Info, X } from 'lucide-react';
+import { Info, X, Copy } from 'lucide-react';
 import { useState } from 'react';
 
 // Dynamic import to avoid SSR issues with Quill
