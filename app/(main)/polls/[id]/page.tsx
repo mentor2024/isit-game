@@ -144,7 +144,8 @@ export default async function PollPage({ params }: { params: Params }) {
                                 id: poll.id,
                                 title: poll.title,
                                 instructions: poll.instructions,
-                                poll_objects: objects // objects now has image_url directly
+                                poll_objects: objects, // objects now has image_url directly
+                                stage: poll.stage
                             }}
                             userId={user?.id || 'anon'}
                         />
