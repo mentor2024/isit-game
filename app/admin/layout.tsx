@@ -17,11 +17,26 @@ export default async function AdminLayout({
         { cookies: { getAll() { return cookieStore.getAll() } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // 1. Authenticate User
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    // Basic Auth Check (Detailed Role Check happens in Page or Middleware, but good to have here too)
-    if (!user) {
+    if (!user || authError) {
         redirect("/login");
+    }
+
+    // 2. Authorize User (Role Check)
+    const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    const role = profile?.role;
+    const isAuthorized = role === 'admin' || role === 'superadmin';
+
+    if (!isAuthorized) {
+        // Redirect unauthorized users to home
+        redirect("/");
     }
 
     // Double check role here to prevent layout leakage? 
