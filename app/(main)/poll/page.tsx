@@ -553,9 +553,11 @@ export default async function PollPage({
                 )}
 
                 {/* Instructions without container */}
-                <p className={`text-xl font-medium ${displayInstructions === activePoll.instructions_correct ? 'text-green-700' : displayInstructions === activePoll.instructions_incorrect ? 'text-red-700' : 'text-gray-700'}`}>
-                    {displayInstructions}
-                </p>
+                {/* Instructions without container */}
+                <div
+                    className={`text-xl font-medium [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 ${displayInstructions === activePoll.instructions_correct ? 'text-green-700' : displayInstructions === activePoll.instructions_incorrect ? 'text-red-700' : 'text-gray-700'}`}
+                    dangerouslySetInnerHTML={{ __html: displayInstructions }}
+                />
             </div>
 
             <main className="max-w-3xl w-full bg-white rounded-xl shadow-lg overflow-hidden">
