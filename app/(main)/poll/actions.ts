@@ -597,27 +597,7 @@ export async function submitMCVote(pollId: string, selectedObjectId: string): Pr
     }
 }
 
-// DEBUG: Inspect state for "Score 51" investigation
-export async function getDebugVoteState() {
-    const supabase = await createSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) return { user: 'No User', votes: [], total: 0 };
-
-    const { data: votes } = await supabase
-        .from('poll_votes')
-        .select('*')
-        .eq('user_id', user.id);
-
-    const total = votes?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
-
-    return {
-        userId: user.id,
-        count: votes?.length || 0,
-        total,
-        votes: votes
-    };
-}
 
 export async function submitLead(formData: FormData) {
     const firstName = formData.get('firstName') as string;

@@ -5,7 +5,6 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { submitMCVote } from "@/app/(main)/poll/actions";
-import GlobalDebugInfo from "@/components/GlobalDebugInfo";
 
 interface PollObject {
     id: string;
@@ -166,10 +165,6 @@ export default function MultipleChoiceInterface({ poll, userId, nextPollId, curr
                     >
                         <div className="flex flex-col">
                             <span className="text-lg font-medium">{obj.text}</span>
-                            {/* DEBUG: Show Points */}
-                            <span className={`text-xs font-bold uppercase ${selectedId === obj.id ? 'text-gray-300' : 'text-gray-400'}`}>
-                                {obj.points !== undefined ? `${obj.points} Points` : '0 Points'}
-                            </span>
                         </div>
 
                         {/* Radio Circle Indicator */}
@@ -195,20 +190,6 @@ export default function MultipleChoiceInterface({ poll, userId, nextPollId, curr
                     {submitting ? "Saving..." : (completed ? "Saved!" : "Confirm Selection")}
                 </button>
 
-                {/* DEBUG: Running Total */}
-                <div className="text-sm font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
-                    Stage Score: {clientScore} (Client) / {poll.id ? (currentStageScore || 0) : 0} (Server)
-                </div>
-
-                <GlobalDebugInfo />
-
-                {/* SUPER DEBUG: Raw Object Data */}
-                <details className="w-full text-xs text-left bg-gray-100 p-2 rounded mt-4">
-                    <summary>Server Data Dump</summary>
-                    <pre>{JSON.stringify(poll.poll_objects, null, 2)}</pre>
-                </details>
-
-                <DebugClientFetch pollId={poll.id} />
             </div>
         </div>
     );
