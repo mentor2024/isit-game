@@ -94,9 +94,10 @@ export default function LevelCompleteScreen({
                                 {customTitle || defaultTitle}
                             </h1>
 
-                            <p className="text-lg text-gray-600 leading-relaxed whitespace-pre-wrap">
-                                {customMessage || defaultMessage}
-                            </p>
+                            <div
+                                className="text-lg text-gray-600 leading-relaxed [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"
+                                dangerouslySetInnerHTML={{ __html: customMessage || defaultMessage }}
+                            />
                         </div>
 
                         {/* If Bottom Group, show continue button here since no form */}

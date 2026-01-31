@@ -260,9 +260,10 @@ export default async function LevelUpPage({
 
             {/* Main Level Instructions */}
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 mb-8 flex flex-col items-center max-w-xl mx-auto">
-                <p className="text-lg font-medium leading-relaxed mb-0 whitespace-pre-wrap">
-                    {instructionsText}
-                </p>
+                <div
+                    className="text-lg font-medium leading-relaxed mb-0 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"
+                    dangerouslySetInnerHTML={{ __html: instructionsText }}
+                />
             </div>
 
             {showPathSelector ? (
