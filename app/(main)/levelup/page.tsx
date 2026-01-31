@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function LevelUpPage({
     searchParams,
 }: {
-    searchParams: Promise<{ stage?: string; level?: string; bonus?: string; dq?: string; correct?: string; total?: string; points?: string }>
+    searchParams: Promise<{ stage?: string; level?: string; bonus?: string; dq?: string; correct?: string; total?: string; points?: string; tier?: string }>
 }) {
     const { stage, level, bonus, dq, correct, total, points, tier } = await searchParams;
 
