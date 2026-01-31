@@ -314,15 +314,22 @@ export default async function PollPage({
 
                     if (levelConfig?.score_tiers) {
                         // Type definition for safety
-                        type ScoreTier = { min_score: number; tier: string; title?: string; message: string };
+                        type ScoreTier = { min_score: number; tier?: string; title?: string; message?: string };
                         const tiers = levelConfig.score_tiers as unknown as ScoreTier[];
 
-                        // We already calculated 'tier' (S/B/D).
-                        // Since Stage 0 uses 'tier' matching (because points logic is custom in code vs simple min_score in other places, though we could unify it),
-                        // let's try to find the message by TIER first, if available in the JSON structure.
-                        // Wait, our JSON structure is an Array of Objects { min_score, tier, title, message }.
+                        // 1. Try to find by TIER (e.g. 'S')
+                        let matchedTier = tiers.find(t => t.tier === tier);
 
-                        const matchedTier = tiers.find(t => t.tier === tier);
+                        // 2. If not found by TIER (e.g. legacy data missing 'tier' prop), try by SCORE
+                        if (!matchedTier) {
+                            // Sort descending
+                            const sortedTiers = [...tiers].sort((a, b) => b.min_score - a.min_score);
+                            // Find first tier where totalPoints (or totalScore) >= min_score
+                            // Note: for Stage 0 we used 'pointsEarned' which is 'totalPoints'.
+                            const scoreToCheck = currentStage === 0 ? pointsEarned : (pointsEarned + bonus);
+                            matchedTier = sortedTiers.find(t => scoreToCheck >= t.min_score);
+                        }
+
                         if (matchedTier) {
                             dynamicTitle = matchedTier.title;
                             dynamicMessage = matchedTier.message;
