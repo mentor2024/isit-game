@@ -1,0 +1,37 @@
+[dotenv@17.2.3] injecting env (3) from .env.local -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+Stage 0 Configuration:
+[
+  {
+    "message": "<h1><strong>You Demonstrate High Awareness</strong></h1><p>Outstanding! Your responses on the Awareness Assessment indicate that you have a very high level of awareness, with an <strong>Awareness Quotient of [[AQ]].</strong></p><p></p><hr><p></p><h2><strong>Question 1</strong></h2><p><strong><em>[[Q-S0-L1-P1]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P1]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P1]]</p><p></p><hr><p></p><h2><strong>Question 2</strong></h2><p><strong><em>[[Q-S0-L1-P2]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P2]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P2]]</p><p></p><hr><p></p><h2><strong>Question 3</strong></h2><p><strong><em>[[Q-S0-L1-P3]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P3]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P3]]</p>",
+    "min_score": 90
+  },
+  {
+    "message": "<h1><strong>You Demonstrate Moderately High Awareness</strong></h1><p>Well done. Your responses on the Awareness Assessment indicate that you have a moderately high level of awareness, with an <strong>Awareness Quotient of [[AQ]].</strong></p><p></p><p></p><hr><p></p><h2><strong>Question 1</strong></h2><p><strong><em>[[Q-S0-L1-P1]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P1]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P1]]</p><p></p><hr><p></p><h2><strong>Question 2</strong></h2><p><strong><em>[[Q-S0-L1-P2]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P2]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P2]]</p><p></p><hr><p></p><h2><strong>Question 3</strong></h2><p><strong><em>[[Q-S0-L1-P3]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P3]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P3]]</p>",
+    "min_score": 70
+  },
+  {
+    "message": "<h1><strong>You Demonstrate Moderate Awareness</strong></h1><p>Based on your responses, your <strong>Awareness Quotient is [[AQ]]</strong>. This reflects a developing awareness that can deepen over time through reflection and experience.</p><p></p><hr><p></p><p></p><h2><strong>Question 1</strong></h2><p><strong><em>[[Q-S0-L1-P1]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P1]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P1]]</p><p></p><hr><p></p><h2><strong>Question 2</strong></h2><p><strong><em>[[Q-S0-L1-P2]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P2]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P2]]</p><p></p><hr><p></p><h2><strong>Question 3</strong></h2><p><strong><em>[[Q-S0-L1-P3]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P3]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P3]]</p>",
+    "min_score": 0
+  }
+]
+
+Sorted Tiers (Logic Simulation):
+[
+  {
+    "message": "<h1><strong>You Demonstrate High Awareness</strong></h1><p>Outstanding! Your responses on the Awareness Assessment indicate that you have a very high level of awareness, with an <strong>Awareness Quotient of [[AQ]].</strong></p><p></p><hr><p></p><h2><strong>Question 1</strong></h2><p><strong><em>[[Q-S0-L1-P1]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P1]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P1]]</p><p></p><hr><p></p><h2><strong>Question 2</strong></h2><p><strong><em>[[Q-S0-L1-P2]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P2]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P2]]</p><p></p><hr><p></p><h2><strong>Question 3</strong></h2><p><strong><em>[[Q-S0-L1-P3]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P3]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P3]]</p>",
+    "min_score": 90
+  },
+  {
+    "message": "<h1><strong>You Demonstrate Moderately High Awareness</strong></h1><p>Well done. Your responses on the Awareness Assessment indicate that you have a moderately high level of awareness, with an <strong>Awareness Quotient of [[AQ]].</strong></p><p></p><p></p><hr><p></p><h2><strong>Question 1</strong></h2><p><strong><em>[[Q-S0-L1-P1]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P1]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P1]]</p><p></p><hr><p></p><h2><strong>Question 2</strong></h2><p><strong><em>[[Q-S0-L1-P2]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P2]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P2]]</p><p></p><hr><p></p><h2><strong>Question 3</strong></h2><p><strong><em>[[Q-S0-L1-P3]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P3]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P3]]</p>",
+    "min_score": 70
+  },
+  {
+    "message": "<h1><strong>You Demonstrate Moderate Awareness</strong></h1><p>Based on your responses, your <strong>Awareness Quotient is [[AQ]]</strong>. This reflects a developing awareness that can deepen over time through reflection and experience.</p><p></p><hr><p></p><p></p><h2><strong>Question 1</strong></h2><p><strong><em>[[Q-S0-L1-P1]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P1]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P1]]</p><p></p><hr><p></p><h2><strong>Question 2</strong></h2><p><strong><em>[[Q-S0-L1-P2]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P2]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P2]]</p><p></p><hr><p></p><h2><strong>Question 3</strong></h2><p><strong><em>[[Q-S0-L1-P3]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P3]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P3]]</p>",
+    "min_score": 0
+  }
+]
+
+Matching for Score 98: {
+  message: '<h1><strong>You Demonstrate High Awareness</strong></h1><p>Outstanding! Your responses on the Awareness Assessment indicate that you have a very high level of awareness, with an <strong>Awareness Quotient of [[AQ]].</strong></p><p></p><hr><p></p><h2><strong>Question 1</strong></h2><p><strong><em>[[Q-S0-L1-P1]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P1]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P1]]</p><p></p><hr><p></p><h2><strong>Question 2</strong></h2><p><strong><em>[[Q-S0-L1-P2]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P2]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P2]]</p><p></p><hr><p></p><h2><strong>Question 3</strong></h2><p><strong><em>[[Q-S0-L1-P3]]</em></strong></p><p></p><h3><strong>Your Response:</strong></h3><p>[[A-S0-L1-P3]]</p><p></p><h3><strong>Feedback:</strong></h3><p>[[F-S0-L1-P3]]</p>',
+  min_score: 90
+}
