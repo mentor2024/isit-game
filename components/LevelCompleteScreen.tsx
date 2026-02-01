@@ -257,7 +257,7 @@ function RegistrationForm({ onComplete, loading: parentLoading }: { onComplete: 
         const { error } = await supabase.auth.signInWithOAuth({
             provider: provider,
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`, // Ensure this route exists or use origin
+                redirectTo: `${window.location.origin}/auth/callback`,
             },
         });
 
