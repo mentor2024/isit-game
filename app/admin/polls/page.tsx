@@ -129,7 +129,7 @@ export default async function AdminPollsPage({
                         {polls?.map((poll) => (
                             <tr key={poll.id} className="border-b border-gray-100 hover:bg-gray-50 text-sm">
                                 <td className="p-3">
-                                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${poll.type === "image_isit"
+                                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${poll.type === "isit_image"
                                         ? "bg-blue-100 text-blue-800 border border-blue-200"
                                         : poll.type === "quad_sorting"
                                             ? "bg-purple-100 text-purple-800 border border-purple-200"
@@ -137,7 +137,7 @@ export default async function AdminPollsPage({
                                                 ? "bg-green-100 text-green-800 border border-green-200"
                                                 : "bg-gray-100 text-gray-800 border border-gray-200"
                                         }`}>
-                                        {poll.type === "image_isit"
+                                        {poll.type === "isit_image"
                                             ? "ISIT Image"
                                             : poll.type === "quad_sorting"
                                                 ? "Quad Sort"

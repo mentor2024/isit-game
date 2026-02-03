@@ -12,7 +12,22 @@ async function getUser(id: string) {
     const { data: { user }, error: userError } = await serviceClient.auth.admin.getUserById(id);
     const { data: profile, error: profileError } = await serviceClient.from('user_profiles').select('*').eq('id', id).single();
 
-    return { user, profile };
+    const { data: pollHistory } = await serviceClient
+        .from('poll_votes')
+        .select(`
+            *,
+            polls (
+                id,
+                title,
+                stage,
+                level,
+                poll_order
+            )
+        `)
+        .eq('user_id', id)
+        .order('created_at', { ascending: false });
+
+    return { user, profile, pollHistory };
 }
 
 export default async function UserDetailsPage({
@@ -24,7 +39,7 @@ export default async function UserDetailsPage({
 }) {
     const { id } = await params;
     const { message, error } = await searchParams;
-    const { user, profile } = await getUser(id);
+    const { user, profile, pollHistory } = await getUser(id);
 
     if (!user) return <div className="p-8">User not found</div>;
 
@@ -120,6 +135,77 @@ export default async function UserDetailsPage({
                     </div>
                 </div>
 
+            </div>
+
+            {/* Poll History */}
+            <div className="mt-8">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Poll History</h3>
+                <div className="bg-white rounded-3xl shadow-[0_8px_0_0_rgba(0,0,0,1)] border-2 border-black overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-100 border-b-2 border-black">
+                                    <th className="p-4 font-bold text-sm uppercase tracking-widest text-gray-500 whitespace-nowrap">Date</th>
+                                    <th className="p-4 font-bold text-sm uppercase tracking-widest text-gray-500 whitespace-nowrap">Context</th>
+                                    <th className="p-4 font-bold text-sm uppercase tracking-widest text-gray-500 w-full">Poll</th>
+                                    <th className="p-4 font-bold text-sm uppercase tracking-widest text-gray-500 whitespace-nowrap text-center">Result</th>
+                                    <th className="p-4 font-bold text-sm uppercase tracking-widest text-gray-500 whitespace-nowrap text-right">Points</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {pollHistory?.map((vote: any) => (
+                                    <tr key={vote.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="p-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                                            {new Date(vote.created_at).toLocaleDateString()}
+                                            <span className="text-xs text-gray-400 block">{new Date(vote.created_at).toLocaleTimeString()}</span>
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-xs font-mono text-gray-500">
+                                            {vote.polls ? (
+                                                <div className="flex flex-col">
+                                                    <span>S{vote.polls.stage} / L{vote.polls.level}</span>
+                                                    <span>Poll #{vote.polls.poll_order}</span>
+                                                </div>
+                                            ) : '-'}
+                                        </td>
+                                        <td className="p-4 text-sm font-bold">
+                                            {vote.polls ? (
+                                                <a
+                                                    href={`/admin/polls/${vote.polls.id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-black hover:text-blue-600 hover:underline group flex items-center gap-1"
+                                                >
+                                                    {vote.polls.title}
+                                                </a>
+                                            ) : <span className="text-gray-400 italic">Poll Deleted</span>}
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-center">
+                                            {vote.is_correct ? (
+                                                <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-50 text-green-700 text-xs font-bold border border-green-200">
+                                                    Correct
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2 py-1 rounded-full bg-red-50 text-red-700 text-xs font-bold border border-red-200">
+                                                    Incorrect
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-right font-mono font-bold text-gray-900">
+                                            {vote.points_earned > 0 ? `+${vote.points_earned}` : vote.points_earned}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {(!pollHistory || pollHistory.length === 0) && (
+                                    <tr>
+                                        <td colSpan={5} className="p-8 text-center text-gray-500 font-medium">
+                                            No polls taken yet.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             {/* Danger Zone */}

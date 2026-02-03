@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { getServerSupabase } from "@/lib/supabaseServer";
+import { cookies } from "next/headers";
 import VotingInterface from "@/components/VotingInterface";
 import Link from "next/link";
 import QuadGroupingInterface from "@/components/QuadGroupingInterface";
@@ -12,6 +13,7 @@ import { advanceLevel } from "@/app/(main)/poll/actions";
 import { getUserMetrics } from "@/lib/metrics";
 import { replaceMessageVariables } from "@/lib/messageUtils";
 import { resolveDynamicMessageVariables } from "@/lib/server/messageVariables";
+import FeedbackDialog from "@/components/FeedbackDialog";
 
 export const dynamic = 'force-dynamic';
 
@@ -78,7 +80,6 @@ export default async function PollPage({
 
             const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
             const hasServiceKey = !!serviceKey;
-            console.log(`[PollPage] Has Service Key: ${hasServiceKey}`);
 
             if (serviceKey) {
                 const serviceClient = createClient(
@@ -113,7 +114,6 @@ export default async function PollPage({
 
             // 3. Fetch a poll NOT in that list, specific to CURRENT STAGE/LEVEL
             // Use serviceClient if available (robustness), otherwise fallback to supabase (auth context)
-            // Actually, we defined serviceClient above in the if(serviceKey) block only.
 
             let queryTarget = (hasServiceKey && voteError === null)
                 ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } })
@@ -141,10 +141,9 @@ export default async function PollPage({
                 console.log(`[PollPage] No active poll found for Stage ${currentStage} Level ${currentLevel}`);
             }
         }
-
     } else {
-        // Fallback for Anon (Stage 0 Level 1 default)
-        // Use SERVICE ROLE to ensure points are fetched (bypassing specific RLS caching issues on server)
+        // TRULY ANONYMOUS (No Session at all) -> Cookie Fallback
+        // Use SERVICE ROLE to ensure points are fetched
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         const serviceClient = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -152,22 +151,29 @@ export default async function PollPage({
             { auth: { persistSession: false } }
         );
 
-        const { data } = await serviceClient
+        // Read Anon Cookie
+        const cookieStore = await cookies();
+        const anonCookie = cookieStore.get('isit_anon_progress')?.value;
+        const anonVotes = anonCookie ? JSON.parse(anonCookie) : [];
+        votedPollIds = anonVotes.map((v: any) => v.pollId);
+
+        let query = serviceClient
             .from("polls")
             .select("*, poll_objects(id, text, image_url, points, correct_side)")
             .eq('stage', 0)
             .eq('level', 1)
             .order('poll_order', { ascending: true })
-            .limit(1)
-            .maybeSingle();
+            .limit(1);
+
+        if (votedPollIds.length > 0) {
+            query = query.not('id', 'in', `(${votedPollIds.join(',')})`);
+        }
+
+        const { data } = await query.maybeSingle();
 
         if (data && data.poll_objects) {
             console.log(`[PollPage] Anon Service Fetch: Found ${data.poll_objects.length} objects.`);
-            data.poll_objects.forEach((o: any) => console.log(`   - Obj ${o.id}: POINTS=${o.points}`));
-        } else {
-            console.log(`[PollPage] Anon Service Fetch: NO DATA or NO OBJECTS.`);
         }
-
         activePoll = data;
     }
 
@@ -185,7 +191,12 @@ export default async function PollPage({
         const hasPolls = (count || 0) > 0;
 
         // Auto-Advance Logic
-        if (hasPolls && user) {
+        // Check for User OR Anon Votes
+        const cookieStore = await cookies();
+        const anonCookie = cookieStore.get('isit_anon_progress')?.value;
+        const hasAnonVotes = !!anonCookie;
+
+        if (hasPolls && (user || hasAnonVotes)) {
             const { data: levelConfig } = await supabase
                 .from('level_configurations')
                 .select('enabled_modules')
@@ -237,58 +248,78 @@ export default async function PollPage({
                     let dynamicTitle = undefined;
                     let dynamicMessage = undefined;
                     let aq = 0;
+                    let metrics = { aq: 0, overallDq: 0, rawScore: 0 };
 
-                    // Get all poll IDs
-                    const { data: allPollsInLevel } = await supabase
-                        .from('polls')
-                        .select('id')
-                        .eq('stage', currentStage)
-                        .eq('level', currentLevel);
-                    const allPollIds = allPollsInLevel?.map(p => p.id) || [];
+                    if (user) {
+                        // Get all poll IDs
+                        const { data: allPollsInLevel } = await supabase
+                            .from('polls')
+                            .select('id')
+                            .eq('stage', currentStage)
+                            .eq('level', currentLevel);
+                        const allPollIds = allPollsInLevel?.map(p => p.id) || [];
 
-                    // 1. Calculate Score & DQ
-                    const { data: correctVotes } = await supabase
-                        .from('poll_votes')
-                        .select('id')
-                        .eq('user_id', user.id)
-                        .in('poll_id', allPollIds)
-                        .eq('is_correct', true);
+                        // 1. Calculate Score & DQ
+                        const { data: correctVotes } = await supabase
+                            .from('poll_votes')
+                            .select('id')
+                            .eq('user_id', user.id)
+                            .in('poll_id', allPollIds)
+                            .eq('is_correct', true);
 
-                    const totalCorrect = correctVotes?.length || 0;
+                        const totalCorrect = correctVotes?.length || 0;
 
-                    const { count: totalVotesCount } = await supabase
-                        .from('poll_votes')
-                        .select('id', { count: 'exact', head: true })
-                        .eq('user_id', user.id)
-                        .in('poll_id', allPollIds);
+                        const { count: totalVotesCount } = await supabase
+                            .from('poll_votes')
+                            .select('id', { count: 'exact', head: true })
+                            .eq('user_id', user.id)
+                            .in('poll_id', allPollIds);
 
-                    const totalVotes = totalVotesCount || 0;
-                    const wrong = totalVotes - totalCorrect;
-                    dq = totalVotes > 0 ? wrong / totalVotes : 0;
+                        const totalVotes = totalVotesCount || 0;
+                        const wrong = totalVotes - totalCorrect;
+                        dq = totalVotes > 0 ? wrong / totalVotes : 0;
 
-                    // Fetch Points
-                    const { data: votePoints } = await supabase
-                        .from('poll_votes')
-                        .select('points_earned')
-                        .eq('user_id', user.id)
-                        .in('poll_id', allPollIds);
+                        // Fetch Points
+                        const { data: votePoints } = await supabase
+                            .from('poll_votes')
+                            .select('points_earned')
+                            .eq('user_id', user.id)
+                            .in('poll_id', allPollIds);
 
-                    const totalPoints = votePoints?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
-                    pointsEarned = totalPoints;
+                        const totalPoints = votePoints?.reduce((sum, v) => sum + (v.points_earned || 0), 0) || 0;
+                        pointsEarned = totalPoints;
 
-                    // Calculate Bonus (Stage > 0)
-                    if (currentStage > 0) {
-                        pointsEarned = Math.floor((totalCorrect / 2) * currentStage * currentLevel);
-                        bonus = Math.round(pointsEarned / (1 + dq));
+                        // Calculate Bonus (Stage > 0)
+                        if (currentStage > 0) {
+                            pointsEarned = Math.floor((totalCorrect / 2) * currentStage * currentLevel);
+                            bonus = Math.round(pointsEarned / (1 + dq));
+                        }
+
+                        // Metrics
+                        metrics = await getUserMetrics(supabase, user.id);
+                        aq = metrics.aq;
+
+                    } else {
+                        // ANON CALCULATION using Cookie
+                        const cookieStore = await cookies();
+                        const anonCookie = cookieStore.get('isit_anon_progress')?.value;
+                        const anonVotes = anonCookie ? JSON.parse(anonCookie) : [];
+
+                        const totalVotes = anonVotes.length;
+                        const correctVotes = anonVotes.filter((v: any) => v.correct).length;
+                        const wrong = totalVotes - correctVotes;
+                        dq = totalVotes > 0 ? wrong / totalVotes : 0;
+
+                        pointsEarned = anonVotes.reduce((sum: number, v: any) => sum + (v.points || 0), 0);
+
+                        // Anon AQ Calc
+                        aq = 50 + pointsEarned;
+                        if (aq > 100) aq = 100;
+
+                        metrics = { aq, overallDq: dq, rawScore: pointsEarned };
                     }
 
-                    // 2. Fetch Metrics (AQ, etc.)
-                    const metrics = await getUserMetrics(supabase, user.id);
-                    aq = metrics.aq;
-
                     // 3. Determine Score needed for Tier Matching
-                    // Stage 0 -> Use AQ (Range 50-100+)
-                    // Stage N -> Use Total Score (Points + Bonus)
                     const scoreForTiering = currentStage === 0 ? aq : (pointsEarned + bonus);
 
                     console.log(`[PollPage] Tiering Calc: Stage=${currentStage}, Score=${scoreForTiering} (Mode: ${currentStage === 0 ? 'AQ' : 'Points+Bonus'})`);
@@ -329,7 +360,9 @@ export default async function PollPage({
                     // 5. Variable Substitution
                     if (dynamicMessage) {
                         try {
-                            dynamicMessage = await resolveDynamicMessageVariables(supabase, dynamicMessage, user.id);
+                            if (user) {
+                                dynamicMessage = await resolveDynamicMessageVariables(supabase, dynamicMessage, user.id);
+                            }
                             dynamicMessage = replaceMessageVariables(dynamicMessage, {
                                 dq: metrics.overallDq,
                                 aq: metrics.aq,
@@ -346,7 +379,9 @@ export default async function PollPage({
                     let resolvedAssessmentContent = levelConfig?.awareness_assessment;
                     if (resolvedAssessmentContent) {
                         try {
-                            resolvedAssessmentContent = await resolveDynamicMessageVariables(supabase, resolvedAssessmentContent, user.id);
+                            if (user) {
+                                resolvedAssessmentContent = await resolveDynamicMessageVariables(supabase, resolvedAssessmentContent, user.id);
+                            }
                             resolvedAssessmentContent = replaceMessageVariables(resolvedAssessmentContent, {
                                 dq: metrics.overallDq,
                                 aq: metrics.aq,
@@ -375,6 +410,7 @@ export default async function PollPage({
                             customMessage={dynamicMessage}
                             assessmentContent={resolvedAssessmentContent}
                             onAdvance={advanceLevel}
+                            isLoggedIn={!!user && !user.is_anonymous}
                         />
                     );
 
@@ -427,11 +463,11 @@ export default async function PollPage({
     let lastDq = 0;
     let lastScore = 0;
 
-    if (user && votedPollIds.length > 0) {
-        // Find most recent vote
+    if (user && votedPollIds.length > 0 && activePoll.poll_order > 1) {
+        // Find most recent vote AND fetch the feedback columns from that poll
         const { data: latestVote } = await supabase
             .from("poll_votes")
-            .select("poll_id, is_correct, created_at, polls(title)")
+            .select("poll_id, is_correct, created_at, polls(title, feedback_correct, feedback_incorrect)")
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
             .limit(1)
@@ -465,24 +501,28 @@ export default async function PollPage({
             console.log(`[PollPage] All Correct: ${allCorrect} (${totalVotesForPoll} votes)`);
 
             if (allCorrect) {
-                if (activePoll.instructions_correct) {
-                    displayInstructions = activePoll.instructions_correct;
+                // @ts-ignore
+                if (latestVote.polls?.feedback_correct) {
+                    // @ts-ignore
+                    displayInstructions = latestVote.polls.feedback_correct;
                     instructionStyles = {
-                        container: "bg-green-100 border-green-600",
+                        container: "bg-green-50 border-green-500",
                         text: "text-green-800",
                         title: "text-green-900"
                     };
-                    console.log(`[PollPage] Showing CORRECT instructions`);
+                    console.log(`[PollPage] Showing CORRECT instructions from Previous Poll`);
                 }
             } else {
-                if (activePoll.instructions_incorrect) {
-                    displayInstructions = activePoll.instructions_incorrect;
+                // @ts-ignore
+                if (latestVote.polls?.feedback_incorrect) {
+                    // @ts-ignore
+                    displayInstructions = latestVote.polls.feedback_incorrect;
                     instructionStyles = {
-                        container: "bg-red-100 border-red-600",
+                        container: "bg-red-50 border-red-500",
                         text: "text-red-800",
                         title: "text-red-900"
                     };
-                    console.log(`[PollPage] Showing INCORRECT instructions`);
+                    console.log(`[PollPage] Showing INCORRECT instructions from Previous Poll`);
                 }
             }
         } else {
@@ -597,26 +637,53 @@ export default async function PollPage({
     return (
         <div className="min-h-screen flex flex-col items-center justify-start pt-4 bg-gray-50 p-4 relative space-y-4">
             <div className="w-full max-w-xl flex items-center gap-2 text-sm font-bold text-black justify-center">
-                <span>{activePoll.stage === 0 ? "Stage Zero" : STAGE_NAMES[activePoll.stage - 1]}</span>
+                <span>{activePoll.stage === 0 ? "Stage Zero" : `Stage ${STAGE_NAMES[activePoll.stage - 1]}`}</span>
                 <ChevronRight size={14} />
                 <span>Level {LEVEL_LETTERS[activePoll.level - 1]}</span>
                 <ChevronRight size={14} />
                 <span>Poll {activePoll.poll_order}</span>
             </div>
 
-            {/* Header Outside Card */}
-            <div className="text-center w-full max-w-4xl">
-                <h1 className="text-4xl font-black text-gray-900 mb-4">{displayTitle}</h1>
+            {/* Floating Feedback Dialog */}
+            <FeedbackDialog
+                context={{
+                    stage: activePoll.stage,
+                    level: activePoll.level,
+                    pollId: activePoll.id,
+                    pollOrder: activePoll.poll_order
+                }}
+            />
 
+            {/* Header Outside Card */}
+            <div className="text-center w-full max-w-3xl">
+                {/* Previous Poll Feedback Container */}
                 {previousPollTitle && (
-                    <h3 className={`font-bold text-lg mb-2 ${instructionStyles.title}`}>{previousPollTitle}</h3>
+                    <div className={`mb-6 p-6 rounded-3xl border relative ${instructionStyles.container}`}>
+                        <FeedbackDialog
+                            defaultType="Content"
+                            context={{
+                                stage: activePoll.stage,
+                                level: activePoll.level,
+                                pollId: activePoll.id,
+                                pollOrder: activePoll.poll_order,
+                                source: 'Previous Poll Feedback'
+                            }}
+                        />
+                        <h3 className={`font-black text-xl mb-2 ${instructionStyles.title}`}>{previousPollTitle}</h3>
+                        <div
+                            className={`text-base font-medium [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 ${instructionStyles.text}`}
+                            dangerouslySetInnerHTML={{ __html: displayInstructions }}
+                        />
+                    </div>
                 )}
 
-                {/* Instructions without container */}
-                {/* Instructions without container */}
+                {/* Current Poll Title */}
+                <h1 className="text-4xl font-black text-gray-900 mb-4">{displayTitle}</h1>
+
+                {/* Current Poll Instructions */}
                 <div
-                    className={`text-xl font-medium [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 ${displayInstructions === activePoll.instructions_correct ? 'text-green-700' : displayInstructions === activePoll.instructions_incorrect ? 'text-red-700' : 'text-gray-700'}`}
-                    dangerouslySetInnerHTML={{ __html: displayInstructions }}
+                    className="text-xl font-medium text-gray-700 [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"
+                    dangerouslySetInnerHTML={{ __html: activePoll.instructions || "" }}
                 />
             </div>
 
@@ -645,9 +712,7 @@ export default async function PollPage({
                     />
                 )}
             </main>
-            <div className="p-4 bg-gray-50 text-center text-sm text-gray-400">
-                Poll ID: {activePoll.id.slice(0, 8)}...
-            </div>
-        </div>
+
+        </div >
     );
 }

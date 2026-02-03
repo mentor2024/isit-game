@@ -18,9 +18,14 @@ export async function saveLevelConfig(stage: number, level: number, formData: Fo
     // Enhanced to catch &nbsp; and encoded variations
     const cleanHtml = (s: string) => {
         if (!s) return s;
-        console.log(`[saveLevelConfig] Raw size: ${s.length}, First 50: ${s.substring(0, 50)}`);
-        const cleaned = s.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ').replace(/&amp;nbsp;/g, ' ');
-        console.log(`[saveLevelConfig] Cleaned size: ${cleaned.length}`);
+        // console.log(`[saveLevelConfig] Raw size: ${s.length}, First 50: ${s.substring(0, 50)}`);
+        // Replace: &nbsp;, \u00A0, &amp;nbsp;, &#160;
+        const cleaned = s
+            .replace(/&nbsp;/g, ' ')
+            .replace(/\u00A0/g, ' ')
+            .replace(/&amp;nbsp;/g, ' ')
+            .replace(/&#160;/g, ' ');
+        // console.log(`[saveLevelConfig] Cleaned size: ${cleaned.length}`);
         return cleaned;
     };
 

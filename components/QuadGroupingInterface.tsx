@@ -195,7 +195,9 @@ export default function QuadGroupingInterface({ pollId, objects }: QuadGroupingI
                 router.push(`/polls/${result.nextPollId}`);
             } else if (result.levelUp) {
                 // If level complete, go to main view for level up logic
-                router.push('/poll');
+                // If level complete, go to main view to trigger Level Complete logic
+                // Use hard navigation to ensure server state is fresh
+                window.location.href = '/poll';
             } else {
                 router.refresh();
             }

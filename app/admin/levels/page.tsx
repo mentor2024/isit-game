@@ -3,8 +3,21 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
 import { Edit } from "lucide-react";
+import LevelFilters from "@/components/LevelFilters";
 
-export default async function AdminLevelsPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function AdminLevelsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+    const params = await searchParams;
+    const search = params.search as string;
+    const stageFilter = params.stage ? parseInt(params.stage as string) : undefined;
+    const levelFilter = params.level ? parseInt(params.level as string) : undefined;
+    const pollCountFilter = params.poll_count ? parseInt(params.poll_count as string) : undefined;
+
     const cookieStore = await cookies();
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,10 +50,33 @@ export default async function AdminLevelsPage() {
     });
 
     // Convert map to array and sort
-    const distinctLevels = Array.from(levelsMap.values()).sort((a, b) => {
+    let distinctLevels = Array.from(levelsMap.values()).sort((a, b) => {
         if (a.stage !== b.stage) return a.stage - b.stage;
         return a.level - b.level;
     });
+
+    // Apply Filters (In-Memory)
+    if (stageFilter !== undefined) {
+        distinctLevels = distinctLevels.filter(l => l.stage === stageFilter);
+    }
+
+    if (levelFilter !== undefined) {
+        distinctLevels = distinctLevels.filter(l => l.level === levelFilter);
+    }
+
+    if (pollCountFilter !== undefined) {
+        distinctLevels = distinctLevels.filter(l => l.pollCount === pollCountFilter);
+    }
+
+    if (search) {
+        const searchLower = search.toLowerCase();
+        distinctLevels = distinctLevels.filter(l => {
+            const stageName = l.stage === 0 ? "Screen" : (STAGE_NAMES[l.stage - 1] || `Stage ${l.stage}`);
+            const levelLetter = LEVEL_LETTERS[l.level - 1] || `Level ${l.level}`;
+            const displayName = `${stageName} • Level ${levelLetter}`;
+            return displayName.toLowerCase().includes(searchLower);
+        });
+    }
 
     return (
         <div className="max-w-6xl mx-auto p-8">
@@ -50,6 +86,8 @@ export default async function AdminLevelsPage() {
                     <p className="text-gray-500 mt-2">Manage level configurations and interstitials.</p>
                 </div>
             </header>
+
+            <LevelFilters />
 
             <div className="bg-white rounded-3xl shadow-[0_8px_0_0_rgba(0,0,0,1)] border-2 border-black overflow-hidden">
                 <table className="w-full text-left border-collapse">
@@ -100,7 +138,7 @@ export default async function AdminLevelsPage() {
                             <tr>
                                 <td colSpan={5} className="p-12 text-center text-gray-400">
                                     <p className="text-xl font-bold mb-2">No Levels Found</p>
-                                    <p className="text-sm">Create polls with assigned stages/levels to populate this list.</p>
+                                    <p className="text-sm">Try adjusting your filters or create polls to populate this list.</p>
                                 </td>
                             </tr>
                         )}

@@ -15,8 +15,8 @@ async function checkConfig() {
     const { data, error } = await supabase
         .from('level_configurations')
         .select('*')
-        .eq('stage', 0)
-        .eq('level', 1);
+        .eq('stage', 2)
+        .eq('level', 2);
 
     if (error) {
         console.error("Error:", error);

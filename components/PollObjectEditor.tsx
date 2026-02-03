@@ -33,7 +33,7 @@ export default function PollObjectEditor({
                     <div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                         <h3 className="font-bold mb-3">Object {num}</h3>
                         <div className="flex flex-col gap-3">
-                            {pollType === "image_isit" && (
+                            {pollType === "isit_image" && (
                                 <>
                                     {obj?.image_url && (
                                         <div className="w-20 h-20 rounded-md overflow-hidden bg-gray-200 border border-gray-300">
@@ -47,7 +47,7 @@ export default function PollObjectEditor({
                             <input
                                 name={`obj${num}_text`}
                                 defaultValue={obj?.text}
-                                placeholder={pollType === "image_isit" ? "Label / Alt Text" : "Word"}
+                                placeholder={pollType === "isit_image" ? "Label / Alt Text" : "Word"}
                                 required
                                 className="border-2 border-black p-2 rounded-lg"
                             />

@@ -1,7 +1,7 @@
 import 'react-quill-new/dist/quill.snow.css';
 import 'quill-table-ui/dist/index.css';
 import Link from "next/link";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters";
+import { STAGE_NAMES, LEVEL_LETTERS, formatHtmlForDisplay } from "@/lib/formatters";
 import { Coins } from "lucide-react";
 import { createServerClient as createClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -20,10 +20,19 @@ export default async function LevelUpPage({
     const { stage, level, bonus, dq, correct, total, points, tier } = await searchParams;
 
     // Parse stage/level or default to something
+    // Parse stage/level or default to something
     const stageNum = stage ? parseInt(stage) : 1;
     const levelNum = level ? parseInt(level) : 1;
+
+    // Points from URL are purely Poll Points
+    const pollPoints = points ? parseInt(points) : 0;
     const bonusNum = bonus ? parseInt(bonus) : 0;
-    const pointsNum = points ? parseInt(points) : 0;
+
+    // Use Total Score (Points + Bonus) for Tier Calculation
+    const totalScore = pollPoints + bonusNum;
+
+    // --- Message Variables Substitution ---
+    // We replace [[AQ]], [[PointTotal]], etc.
     const dqNum = dq ? parseFloat(dq) : 0;
     const correctCount = correct ? parseInt(correct) : 0;
     const totalCount = total ? parseInt(total) : 0;
@@ -119,7 +128,7 @@ export default async function LevelUpPage({
 
     // Fetch user votes for Rails if enabled
     let railItems: { text: string, side: "IS" | "IT" }[] = [];
-    if (showSideRails && user) {
+    if (showSideRails && user && modules.includes('is_it_rails')) { // Added safety check
         // Fetch ALL votes for this user up to now
         const { data: votes } = await supabase
             .from('poll_votes')
@@ -147,7 +156,7 @@ export default async function LevelUpPage({
     // Apply substitution to main instructions
     if (user) {
         try {
-            instructionsText = await resolveDynamicMessageVariables(supabase, instructionsText, user.id);
+            instructionsText = await resolveDynamicMessageVariables(supabase, instructionsText, user.id, { stage: stageNum, level: levelNum });
         } catch (e) {
             console.error("Error substituting Q&A variables for instructions:", e);
         }
@@ -175,7 +184,7 @@ export default async function LevelUpPage({
         const sortedTiers = [...tiers].sort((a, b) => b.min_score - a.min_score);
 
         // Find match
-        const matched = sortedTiers.find(t => pointsNum >= t.min_score);
+        const matched = sortedTiers.find(t => totalScore >= t.min_score);
 
         if (matched) {
             dynamicTitle = matched.title;
@@ -183,7 +192,7 @@ export default async function LevelUpPage({
 
             if (user && dynamicMessage) {
                 try {
-                    dynamicMessage = await resolveDynamicMessageVariables(supabase, dynamicMessage, user.id);
+                    dynamicMessage = await resolveDynamicMessageVariables(supabase, dynamicMessage, user.id, { stage: stageNum, level: levelNum });
                 } catch (e) {
                     console.error("Error substituting Q&A for dynamic message:", e);
                 }
@@ -205,7 +214,7 @@ export default async function LevelUpPage({
 
     // Level Scores Content (Left Rail)
     const LevelScoresContent = modules.includes('level_scores') ? (
-        <div className="w-full min-h-[260px] flex flex-col justify-start bg-black/40 rounded-[2rem] p-4 border-4 border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center backdrop-blur-md">
+        <div key="level-scores" className="w-full min-h-[260px] flex flex-col justify-start bg-black/40 rounded-[2rem] p-4 border-4 border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center backdrop-blur-md">
             <h3 className="text-sm font-black mb-4 uppercase tracking-wider text-white border-b border-white/20 pb-2">Level Scores</h3>
 
             <div className="flex flex-col gap-4">
@@ -222,7 +231,7 @@ export default async function LevelUpPage({
                     {/* Poll Pts */}
                     <div>
                         <div className="text-xl font-black text-yellow-300 leading-none mb-1">
-                            +{pointsNum} Pts
+                            +{pollPoints} Pts
                         </div>
                         <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">Poll Pts</div>
                     </div>
@@ -238,12 +247,23 @@ export default async function LevelUpPage({
                     )}
                 </div>
 
-                {/* 4. DQ (Level) */}
-                <div>
-                    <div className={`text-3xl font-black leading-none mb-1 ${dqNum < 0.2 ? "text-green-400" : dqNum < 0.5 ? "text-yellow-400" : "text-red-400"}`}>
-                        {dqNum.toFixed(2)}
+                {/* 4. AQ & DQ Row */}
+                <div className="flex flex-row justify-center items-center gap-4">
+                    {/* AQ (Green) */}
+                    <div>
+                        <div className="text-3xl font-black text-green-400 leading-none mb-1">
+                            {awarenessQuotient}
+                        </div>
+                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">AQ</div>
                     </div>
-                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">DQ (Level)</div>
+
+                    {/* DQ (Red) */}
+                    <div className="pl-4 border-l border-white/10">
+                        <div className="text-3xl font-black text-red-400 leading-none mb-1">
+                            {dqNum.toFixed(2)}
+                        </div>
+                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">DQ (Level)</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -251,7 +271,7 @@ export default async function LevelUpPage({
 
     // Metrics Module Content (Right Rail)
     const MetricsContent = modules.includes('your_metrics') ? (
-        <div className="w-full min-h-[260px] flex flex-col justify-start bg-black/40 rounded-[2rem] p-4 border-4 border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center backdrop-blur-md">
+        <div key="metrics-content" className="w-full min-h-[260px] flex flex-col justify-start bg-black/40 rounded-[2rem] p-4 border-4 border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] text-center backdrop-blur-md">
             <h3 className="text-sm font-black mb-4 uppercase tracking-wider text-white border-b border-white/20 pb-2">Your Metrics</h3>
 
             <div className="flex flex-col gap-4">
@@ -282,8 +302,11 @@ export default async function LevelUpPage({
 
     // Default height shim matching the modules (approx height)
     // We can use the same structure with invisible content to ensure exact height match.
-    const PlaceholderContent = (
-        <div className="w-full min-h-[260px] flex flex-col justify-start bg-transparent rounded-[2rem] p-4 border-4 border-transparent text-center invisible">
+    // We add a key here to ensure uniqueness if used, though ideally we should use cloneElement with key if repeated.
+    // However, since we defined it as a const, reusing it might be the issue. 
+    // Let's make it a Component Function instead so we can instantiate it with keys.
+    const PlaceholderContent = (key: string) => (
+        <div key={key} className="w-full min-h-[260px] flex flex-col justify-start bg-transparent rounded-[2rem] p-4 border-4 border-transparent text-center invisible">
             <h3 className="text-sm font-black mb-4 border-b pb-2">Placeholder</h3>
             <div className="flex flex-col gap-4">
                 <div><div className="text-lg mb-1">Stage One • Level A</div><div className="text-[9px]">Text</div></div>
@@ -300,13 +323,13 @@ export default async function LevelUpPage({
     if (modules.includes('level_scores')) {
         LeftContent = LevelScoresContent;
     } else if (modules.includes('your_metrics')) {
-        LeftContent = PlaceholderContent;
+        LeftContent = PlaceholderContent('left-placeholder');
     }
 
     if (modules.includes('your_metrics')) {
         RightContent = MetricsContent;
     } else if (modules.includes('level_scores')) {
-        RightContent = PlaceholderContent;
+        RightContent = PlaceholderContent('right-placeholder');
     }
 
     // Layout Logic
@@ -329,28 +352,29 @@ export default async function LevelUpPage({
             {/* Main Level Instructions */}
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 mb-8 flex flex-col items-center max-w-xl mx-auto">
                 <div
-                    className="text-lg font-medium leading-relaxed mb-0 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"
-                    dangerouslySetInnerHTML={{ __html: instructionsText }}
+                    className="text-lg font-medium leading-relaxed mb-0 w-full text-left"
+                    dangerouslySetInnerHTML={{ __html: formatHtmlForDisplay(instructionsText) }}
                 />
             </div>
 
             {/* Awareness Assessment Section (New) */}
-            {config?.awareness_assessment && (
+            {(dynamicMessage || config?.awareness_assessment) && (
                 <div className="w-full max-w-4xl mx-auto mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="bg-purple-900/40 backdrop-blur-md rounded-3xl p-8 border-2 border-purple-500/30 text-left relative overflow-hidden">
                         <div className="absolute top-0 right-0 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl uppercase tracking-widest">
                             Awareness Assessment
                         </div>
                         <div
-                            className="ql-editor text-xl text-purple-100 font-medium leading-relaxed [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>strong]:text-white [&>strong]:font-black"
+                            className="text-xl text-purple-100 font-medium leading-relaxed"
                             dangerouslySetInnerHTML={{
-                                __html: replaceMessageVariables(config.awareness_assessment, {
+                                // Prefer the Tier-based message (dynamicMessage) if available, otherwise fallback to generic assessment
+                                __html: formatHtmlForDisplay(dynamicMessage || replaceMessageVariables(config.awareness_assessment || "", {
                                     dq: overallDq,
                                     aq: awarenessQuotient,
                                     pointTotal: rawScore,
                                     lastDq,
                                     lastScore
-                                })
+                                }))
                             }}
                         />
                     </div>

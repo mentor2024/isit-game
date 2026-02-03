@@ -83,8 +83,8 @@ export default function PollFilters() {
                     }}
                 >
                     <option value="">All</option>
-                    <option value="text_isit">ISIT Text</option>
-                    <option value="image_isit">ISIT Image</option>
+                    <option value="isit_text">ISIT Text</option>
+                    <option value="isit_image">ISIT Image</option>
                 </select>
             </div>
             {/* ... other filters ... */}

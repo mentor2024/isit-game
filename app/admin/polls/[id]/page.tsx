@@ -91,12 +91,12 @@ export default async function PollDetailsPage({ params }: { params: Promise<{ id
                             <div className="mb-6 pb-6 border-b border-gray-100">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Type</label>
                                 <div className="text-lg font-bold">
-                                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${poll.type === "image_isit" ? "bg-blue-100 text-blue-800" :
+                                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${poll.type === "isit_image" ? "bg-blue-100 text-blue-800" :
                                         poll.type === "quad_sorting" ? "bg-purple-100 text-purple-800" :
                                             poll.type === "multiple_choice" ? "bg-green-100 text-green-800" :
                                                 "bg-gray-100 text-gray-800"
                                         }`}>
-                                        {poll.type === "image_isit" ? "ISIT Image" :
+                                        {poll.type === "isit_image" ? "ISIT Image" :
                                             poll.type === "quad_sorting" ? "Quad Sorting" :
                                                 poll.type === "multiple_choice" ? "Multi-choice (points)" :
                                                     "ISIT Text"}
@@ -118,7 +118,7 @@ export default async function PollDetailsPage({ params }: { params: Promise<{ id
                         </div>
 
                         {/* Right: Images (only for image polls OR quad sorting) */}
-                        {(poll.type === "image_isit" || poll.type === "quad_sorting") && (
+                        {(poll.type === "isit_image" || poll.type === "quad_sorting") && (
                             <div className="w-full lg:w-1/3 flex flex-col gap-4">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Poll Images</label>
                                 <div className="grid grid-cols-2 gap-4">

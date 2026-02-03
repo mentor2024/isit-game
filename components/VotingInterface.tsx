@@ -88,9 +88,8 @@ function DropZone({ side, assignedWord, hasImages }: { side: "IS" | "IT"; assign
             </div>
 
             {/* Flexible Connector Line */}
-            {/* Only show for text items. Images float or sit on top? User asked for line. */}
-            {/* If assigned word exists AND matches specific criteria, show line. */}
-            <div className={`w-[2px] bg-black transition-all duration-300 ${assignedWord && !assignedWord.image_url ? "opacity-100 flex-grow" : "opacity-0 flex-grow"}`}></div>
+            {/* Flexible Connector Line */}
+            <div className={`w-[2px] bg-black transition-all duration-300 ${assignedWord ? "opacity-100 flex-grow" : "opacity-0 flex-grow"}`}></div>
 
             {/* Target Image/Circle */}
             <div
@@ -228,13 +227,13 @@ export default function VotingInterface({ pollId, objects, sides }: VotingInterf
 
     return (
         <DndContext id={dndId} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex flex-col items-center w-full">
+            <div className="flex flex-col items-center w-full pb-8">
 
                 {/* 3-Column Grid Layout */}
                 {/* Fixed Height Container to prevent shifting */}
-                {/* Text: 350px (short connectors), Images: 550px (accommodate larger items) */}
+                {/* Text: 350px (short connectors), Images: 450px (accommodate larger items) */}
                 {/* w-fit mx-auto to keep columns close together. */}
-                <div className={`grid grid-cols-[1fr_auto_1fr] gap-2 w-fit mx-auto items-stretch mb-8 px-4 ${hasImages ? "h-[550px]" : "h-[350px]"}`}>
+                <div className={`grid grid-cols-[1fr_auto_1fr] gap-2 w-fit mx-auto items-stretch mb-8 px-4 ${hasImages ? "h-[450px]" : "h-[350px]"}`}>
 
                     {/* LEFT ZONE (IS or IT) */}
                     <div className="h-full">

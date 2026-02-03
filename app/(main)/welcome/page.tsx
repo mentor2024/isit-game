@@ -8,6 +8,8 @@ export default function WelcomePage() {
         <div className="min-h-screen flex flex-col items-center justify-center bg-white p-6 text-center">
 
             <div className="max-w-xl w-full flex flex-col items-center gap-8 animate-in fade-in zoom-in duration-500">
+                <h1 className="text-5xl font-black tracking-tighter">Welcome to</h1>
+
                 <Image
                     src="/logo.png"
                     alt="IS IT? Game Logo"
@@ -18,35 +20,15 @@ export default function WelcomePage() {
                 />
 
                 <div className="space-y-4">
-                    <h1 className="text-5xl font-black tracking-tighter">Welcome to the Game</h1>
                     <p className="text-xl text-gray-600 leading-relaxed">
-                        We need your help to settle the world's most important debates.
-                        <br />
-                        Is a hotdog a sandwich? Is cereal soup?
+                        Welcome to the ISIT Game—an experiment in collaborative sensemaking based on the <a href="https://isitas.org/the-isit-construct/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">ISIT Construct</a> that will allow humanity to achieve the critical goal of AI Alignment by raising our own collective Awareness.
                     </p>
-                </div>
-
-                <div className="p-6 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300 w-full">
-                    <h3 className="font-bold text-gray-400 uppercase tracking-widest text-xs mb-2">How it works</h3>
-                    <ul className="text-left space-y-3 font-medium text-gray-700 mx-auto max-w-xs">
-                        <li className="flex items-center gap-3">
-                            <span className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold">1</span>
-                            Review the Objects
-                        </li>
-                        <li className="flex items-center gap-3">
-                            <span className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold">2</span>
-                            Drag them to their correct side
-                        </li>
-                        <li className="flex items-center gap-3">
-                            <span className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold">3</span>
-                            Unlock the next debate
-                        </li>
-                    </ul>
                 </div>
 
                 <Link
                     href="/poll"
-                    className="w-full bg-black text-white text-xl font-bold py-4 rounded-full hover:scale-105 transition-transform shadow-xl"
+                    className="w-full text-white text-xl font-bold py-4 rounded-full hover:scale-105 transition-transform shadow-xl"
+                    style={{ backgroundColor: '#af0111' }}
                 >
                     Let's Play
                 </Link>

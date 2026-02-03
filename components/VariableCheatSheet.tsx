@@ -9,6 +9,10 @@ const VARIABLES = [
     { label: "Points", value: "[[PointTotal]]", desc: "Total Score" },
     { label: "Last DQ", value: "[[LastDQ]]", desc: "Prev. Poll DQ" },
     { label: "Last Score", value: "[[LastScore]]", desc: "Prev. Poll Pts" },
+    { label: "Rnd Correct Pick", value: "[[RandomCorrectPick]]", desc: "Example User Pick (Right)" },
+    { label: "Rnd Wrong Pick", value: "[[RandomIncorrectPick]]", desc: "Example User Pick (Wrong)" },
+    { label: "Rnd Correct Poll", value: "[[RandomCorrectPoll]]", desc: "Example Poll Title (Right)" },
+    { label: "Rnd Wrong Poll", value: "[[RandomIncorrectPoll]]", desc: "Example Poll Title (Wrong)" },
 
 ];
 

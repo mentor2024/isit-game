@@ -76,6 +76,9 @@ export default function RichTextEditor({ value, onChange, label, placeholder, va
                 }
             }
         },
+        clipboard: {
+            matchVisual: false
+        }
     }), [variant]);
 
     // Determine height: Explicit prop > Variant based > Default
@@ -114,7 +117,16 @@ export default function RichTextEditor({ value, onChange, label, placeholder, va
                     <ReactQuill
                         theme="snow"
                         value={value}
-                        onChange={onChange}
+                        onChange={(content, delta, source, editor) => {
+                            // Only update if the change comes from the user to avoid infinite loops
+                            // when the cleaned value is passed back to the component
+                            if (source === 'user') {
+                                const clean = content
+                                    .replace(/&nbsp;/g, ' ')
+                                    .replace(/&amp;nbsp;/g, ' ');
+                                onChange(clean);
+                            }
+                        }}
                         modules={modules}
                         placeholder={placeholder}
                         className={`${finalHeightClass} mb-12`}

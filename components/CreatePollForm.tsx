@@ -19,6 +19,11 @@ export default function CreatePollForm({
     const [obj1Side, setObj1Side] = useState("");
     const [obj2Side, setObj2Side] = useState("");
 
+    // New states from diff
+    const [title, setTitle] = useState("");
+    const [pollType, setPollType] = useState("isit_text");
+    const [attributeId, setAttributeId] = useState("");
+
     // Rich Text State
     const [instructions, setInstructions] = useState("");
     const [instructionsCorrect, setInstructionsCorrect] = useState("");
@@ -33,7 +38,6 @@ export default function CreatePollForm({
             setObj1Side(side === "IS" ? "IT" : "IS");
         }
     };
-    const [pollType, setPollType] = useState("text_isit");
     const [mcResponseCount, setMcResponseCount] = useState(2);
     const [stage, setStage] = useState(defaultValues?.stage !== undefined ? defaultValues.stage : 1);
     const [level, setLevel] = useState(defaultValues?.level || 1);
@@ -58,11 +62,7 @@ export default function CreatePollForm({
         }
     }, [defaultValues]);
 
-    const handleTypeChange = (val: string) => {
-        setPollType(val);
-        localStorage.setItem("lastPollType", val);
-    };
-
+    // handleTypeChange is removed as per diff, onChange directly calls setPollType
     const handleStageChange = (val: string) => {
         const newStage = parseInt(val);
         setStage(newStage);
@@ -80,6 +80,11 @@ export default function CreatePollForm({
         setMsg("");
 
         try {
+            // Update form data with rich text content
+            formData.set("instructions", instructions);
+            formData.set("feedback_correct", instructionsCorrect);
+            formData.set("feedback_incorrect", instructionsIncorrect);
+
             await createPoll(formData);
             setMsg("Poll created successfully!");
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -90,7 +95,6 @@ export default function CreatePollForm({
                 if (el) el.value = val;
             };
 
-            setVal('title', '');
             setVal('title', '');
 
             // Clear instructions state
@@ -108,7 +112,7 @@ export default function CreatePollForm({
             setMcResponseCount(2);
 
             // Re-apply controlled values to match state
-            setPollType(pollType);
+            setPollType(pollType); // This will re-apply the last selected type
             setStage(stage);
             setLevel(level);
             // pollOrder will be updated state, need to reflect in input
@@ -147,12 +151,15 @@ export default function CreatePollForm({
                             <select
                                 name="type"
                                 value={pollType}
-                                onChange={(e) => handleTypeChange(e.target.value)}
-                                className="border-2 border-black p-3 rounded-xl bg-white"
+                                onChange={(e) => {
+                                    setPollType(e.target.value);
+                                    localStorage.setItem("lastPollType", e.target.value); // Keep localStorage update
+                                }}
+                                className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-black transition-all outline-none font-bold appearance-none"
                             >
-                                <option value="text_isit">ISIT Text</option>
-                                <option value="image_isit">ISIT Image</option>
-                                <option value="quad_sorting">Quad Sort</option>
+                                <option value="isit_text">ISIT Text</option>
+                                <option value="isit_image">ISIT Image</option>
+                                <option value="quad_sorting">Quad Sorting</option>
                                 <option value="multiple_choice">Multi-choice (points)</option>
                             </select>
                         </div>
@@ -176,7 +183,7 @@ export default function CreatePollForm({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex flex-col gap-2">
                                 <label className="font-bold text-green-700">Correct Answer Feedback</label>
-                                <input type="hidden" name="instructions_correct" value={instructionsCorrect} />
+                                <input type="hidden" name="feedback_correct" value={instructionsCorrect} />
                                 <RichTextEditor
                                     value={instructionsCorrect}
                                     onChange={setInstructionsCorrect}
@@ -185,7 +192,7 @@ export default function CreatePollForm({
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className="font-bold text-red-700">Incorrect Answer Feedback</label>
-                                <input type="hidden" name="instructions_incorrect" value={instructionsIncorrect} />
+                                <input type="hidden" name="feedback_incorrect" value={instructionsIncorrect} />
                                 <RichTextEditor
                                     value={instructionsIncorrect}
                                     onChange={setInstructionsIncorrect}
@@ -322,9 +329,10 @@ export default function CreatePollForm({
                         ) : (
                             <>
                                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                    <h3 className="font-bold mb-3">Object 1 ({pollType === "image_isit" ? "Image" : "Text"})</h3>
-                                    <div className="flex flex-col gap-3">
-                                        {pollType === "image_isit" ? (
+                                    <h3 className="font-bold mb-3">Object 1 ({pollType === "isit_image" ? "Image" : "Text"})</h3>
+
+                                    <div className="space-y-4">
+                                        {pollType === "isit_image" ? (
                                             <>
                                                 <input type="file" name="obj1_image" accept="image/*" required className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
                                                 <input name="obj1_text" placeholder="Label / Alt Text" required className="border-2 border-black p-2 rounded-lg" />
@@ -362,10 +370,11 @@ export default function CreatePollForm({
                                     </div>
                                 </div>
 
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                    <h3 className="font-bold mb-3">Object 2 ({pollType === "image_isit" ? "Image" : "Text"})</h3>
-                                    <div className="flex flex-col gap-3">
-                                        {pollType === "image_isit" ? (
+                                <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                                    <h3 className="font-bold mb-3">Object 2 ({pollType === "isit_image" ? "Image" : "Text"})</h3>
+
+                                    <div className="space-y-4">
+                                        {pollType === "isit_image" ? (
                                             <>
                                                 <input type="file" name="obj2_image" accept="image/*" required className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white" />
                                                 <input name="obj2_text" placeholder="Label / Alt Text" required className="border-2 border-black p-2 rounded-lg" />

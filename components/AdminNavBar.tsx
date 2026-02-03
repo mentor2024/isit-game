@@ -11,8 +11,15 @@ export function AdminNavBar({ signOutAction }: { signOutAction: () => Promise<vo
         <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-black/90 backdrop-blur text-white">
             {/* Branding */}
             <div className="flex items-center gap-4">
-                <Link href="/admin" className="font-black text-xl tracking-tighter hover:text-gray-300 transition-colors">
-                    ISIT ADMIN
+                <Link href="/admin" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                    <Image
+                        src="/images/isit-logo-full.png"
+                        alt="The ISIT Game"
+                        width={140}
+                        height={40}
+                        className="object-contain h-10 w-auto"
+                    />
+                    <span className="font-black text-3xl tracking-tighter text-white mt-1">ADMIN</span>
                 </Link>
             </div>
 
@@ -58,14 +65,35 @@ export function AdminNavBar({ signOutAction }: { signOutAction: () => Promise<vo
                 >
                     Stages
                 </Link>
+
                 <Link
-                    href="/admin/documentation/variables"
-                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pathname.startsWith('/admin/documentation')
+                    href="/admin/feedback"
+                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pathname.startsWith('/admin/feedback')
                         ? 'bg-white text-black'
                         : 'hover:bg-white/10'
                         }`}
                 >
+                    Feedback
+                </Link>
+
+                <Link
+                    href="/admin/documentation"
+                    className={`block px-3 py-2 rounded-md transition-colors font-bold ${pathname.includes('/admin/documentation')
+                        ? 'bg-black text-white hover:bg-gray-800'
+                        : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                >
                     Docs
+                </Link>
+
+                <Link
+                    href="/admin/leads"
+                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pathname.startsWith('/admin/leads')
+                        ? 'bg-white text-black'
+                        : 'hover:bg-white/10'
+                        }`}
+                >
+                    Leads
                 </Link>
             </div>
 

@@ -52,11 +52,11 @@ export async function createPoll(formData: FormData) {
         throw new Error("Unauthorized");
     }
 
-    const type = (formData.get("type") as string) || "text_isit";
+    const type = (formData.get("type") as string) || "isit_text";
     const title = formData.get("title") as string;
     const instructions = formData.get("instructions") as string;
-    const instructions_correct = formData.get("instructions_correct") as string;
-    const instructions_incorrect = formData.get("instructions_incorrect") as string;
+    const feedback_correct = formData.get("feedback_correct") as string;
+    const feedback_incorrect = formData.get("feedback_incorrect") as string;
     const stage = parseInt(formData.get("stage") as string);
     // If NaN, default to 1. If 0, keep 0.
     const safeStage = isNaN(stage) ? 1 : stage;
@@ -75,8 +75,8 @@ export async function createPoll(formData: FormData) {
 
     // Clean Instructions
     const clean_instructions = cleanHtml(instructions);
-    const clean_instructions_correct = cleanHtml(instructions_correct);
-    const clean_instructions_incorrect = cleanHtml(instructions_incorrect);
+    const clean_feedback_correct = cleanHtml(feedback_correct);
+    const clean_feedback_incorrect = cleanHtml(feedback_incorrect);
 
     // Extract Quad Scores if applicable
     let quad_scores = {};
@@ -100,8 +100,8 @@ export async function createPoll(formData: FormData) {
         .insert({
             title,
             instructions: clean_instructions,
-            instructions_correct: clean_instructions_correct,
-            instructions_incorrect: clean_instructions_incorrect,
+            feedback_correct: clean_feedback_correct,
+            feedback_incorrect: clean_feedback_incorrect,
             stage: safeStage,
             level,
             poll_order,
@@ -137,7 +137,7 @@ export async function createPoll(formData: FormData) {
             let text = cleanHtml(textInput);
 
             // For Quad Sorting OR Image ISIT, we expect images
-            const needsImage = type === "image_isit" || type === "quad_sorting";
+            const needsImage = type === "isit_image" || type === "quad_sorting";
 
             if (needsImage) {
                 if (!fileInput || fileInput.size === 0) throw new Error(`Image for Object ${i} is missing`);
@@ -236,8 +236,8 @@ export async function updatePoll(formData: FormData) {
     const pollId = formData.get("pollId") as string;
     const title = formData.get("title") as string;
     const instructions = formData.get("instructions") as string;
-    const instructions_correct = formData.get("instructions_correct") as string;
-    const instructions_incorrect = formData.get("instructions_incorrect") as string;
+    const feedback_correct = formData.get("feedback_correct") as string;
+    const feedback_incorrect = formData.get("feedback_incorrect") as string;
 
     if (!pollId || !title) {
         throw new Error("Missing required fields");
@@ -257,15 +257,15 @@ export async function updatePoll(formData: FormData) {
 
     // Clean Instructions
     const clean_instructions = cleanHtml(instructions);
-    const clean_instructions_correct = cleanHtml(instructions_correct);
-    const clean_instructions_incorrect = cleanHtml(instructions_incorrect);
+    const clean_feedback_correct = cleanHtml(feedback_correct);
+    const clean_feedback_incorrect = cleanHtml(feedback_incorrect);
 
     // Extract Quad Scores if provided (edit form includes them if type is quad_sorting)
     const updates: any = {
         title,
         instructions: clean_instructions,
-        instructions_correct: clean_instructions_correct,
-        instructions_incorrect: clean_instructions_incorrect,
+        feedback_correct: clean_feedback_correct,
+        feedback_incorrect: clean_feedback_incorrect,
         stage,
         level,
         poll_order
@@ -422,8 +422,8 @@ export async function clonePoll(pollId: string) {
         .insert({
             title: `Copy of ${original.title}`,
             instructions: original.instructions,
-            instructions_correct: original.instructions_correct,
-            instructions_incorrect: original.instructions_incorrect,
+            feedback_correct: original.feedback_correct,
+            feedback_incorrect: original.feedback_incorrect,
             type: original.type,
             stage: original.stage,
             level: original.level,

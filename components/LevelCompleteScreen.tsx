@@ -2,9 +2,10 @@
 
 import 'react-quill-new/dist/quill.snow.css';
 import 'quill-table-ui/dist/index.css';
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { STAGE_NAMES, LEVEL_LETTERS } from "@/lib/formatters"; // Assuming these exist, else use raw
+import { STAGE_NAMES, LEVEL_LETTERS, formatHtmlForDisplay } from "@/lib/formatters"; // Assuming these exist, else use raw
+import { ArrowLeft } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useEffect } from "react";
 interface LevelCompleteScreenProps {
@@ -22,6 +23,7 @@ interface LevelCompleteScreenProps {
     customTitle?: string;
     customMessage?: string;
     assessmentContent?: string;
+    isLoggedIn?: boolean;
 }
 
 export default function LevelCompleteScreen({
@@ -38,7 +40,8 @@ export default function LevelCompleteScreen({
     onAdvance,
     customTitle,
     customMessage,
-    assessmentContent
+    assessmentContent,
+    isLoggedIn = false
 }: LevelCompleteScreenProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -60,7 +63,17 @@ export default function LevelCompleteScreen({
             if (onAdvance) {
                 await onAdvance(nextStage, nextLevel);
             }
-            router.refresh();
+
+            if (stage === 0) {
+                // If Middle Group (B/C), they don't play the game yet -> Thank You Page
+                if (tier === 'B' || tier === 'C') {
+                    router.push('/thank-you');
+                } else {
+                    router.push('/welcome');
+                }
+            } else {
+                router.refresh();
+            }
         } catch (e) {
             console.error(e);
             setLoading(false);
@@ -72,6 +85,17 @@ export default function LevelCompleteScreen({
         const isTopGroup = tier === 'S' || tier === 'A';
         const isMiddleGroup = tier === 'B' || tier === 'C';
         const isBottomGroup = !isTopGroup && !isMiddleGroup;
+
+        // Logic for showing the right-side form
+        // - Top Group: Registration Form (Show only if NOT logged in)
+        // - Middle Group: Lead Form (Show ALWAYS, even if logged in, per user request)
+        // - Bottom Group: No Form
+        const showForm = (isTopGroup && !isLoggedIn) || isMiddleGroup;
+
+        // Logic for layout (columns)
+        // If bottom group or (top group & logged in), we use single column layout
+        // actually, if !showForm, we use single column/centered?
+        const isSingleColumn = !showForm;
 
         // Fallback Defaults
         const defaultTitle = isTopGroup ? "You Are Aware." :
@@ -86,23 +110,30 @@ export default function LevelCompleteScreen({
 
         return (
             <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 animate-in fade-in zoom-in duration-500">
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    .user-html-content p { display: block; margin-bottom: 1.5em !important; min-height: 1.5em; }
+                    .user-html-content ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+                    .user-html-content ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
+                    .user-html-content strong { font-weight: 900; }
+                `}} />
                 <div className="max-w-6xl w-full flex flex-col gap-8">
                     {/* TOP ROW: Assessment Content (Left) + Form (Right) */}
-                    <div className={`grid ${isBottomGroup ? 'grid-cols-1 max-w-xl mx-auto' : 'grid-cols-1 md:grid-cols-3'} gap-8 items-stretch`}>
+                    <div className={`grid ${isSingleColumn ? 'grid-cols-1 max-w-xl mx-auto' : 'grid-cols-1 md:grid-cols-3'} gap-8 items-stretch`}>
 
                         {/* LEFT PANEL: Assessment Content (Recap) */}
-                        <div className={`bg-white rounded-3xl shadow-xl p-8 border border-gray-100 flex flex-col text-left min-w-0 w-full max-w-full ${!isBottomGroup ? 'md:col-span-2' : ''}`}>
+                        <div className={`bg-white rounded-3xl shadow-xl p-8 border border-gray-100 flex flex-col text-left min-w-0 w-full max-w-full ${showForm ? 'md:col-span-2' : ''}`}>
                             {assessmentContent ? (
                                 <div
-                                    className="ql-editor text-lg text-gray-600 leading-relaxed break-words w-full max-w-full"
-                                    dangerouslySetInnerHTML={{ __html: assessmentContent }}
+                                    className="rich-text text-lg text-gray-600 leading-relaxed break-words w-full max-w-full"
+                                    dangerouslySetInnerHTML={{ __html: formatHtmlForDisplay(assessmentContent) }}
                                 />
                             ) : (
                                 <p className="text-gray-400 italic">No assessment content configured.</p>
                             )}
 
-                            {/* If Bottom Group, show continue button here since no form */}
-                            {isBottomGroup && (
+                            {/* If Form is HIDDEN, show continue button here */}
+                            {!showForm && (
                                 <button
                                     onClick={handleContinue}
                                     disabled={loading}
@@ -113,8 +144,8 @@ export default function LevelCompleteScreen({
                             )}
                         </div>
 
-                        {/* RIGHT PANEL: Form (Only Top/Middle) */}
-                        {!isBottomGroup && (
+                        {/* RIGHT PANEL: Form */}
+                        {showForm && (
                             <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 flex flex-col justify-center md:col-span-1">
                                 {isTopGroup ? (
                                     <RegistrationForm onComplete={handleContinue} loading={loading} />
@@ -128,8 +159,8 @@ export default function LevelCompleteScreen({
                     {/* BOTTOM ROW: Feedback Message (Full Width) */}
                     <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 w-full text-left">
                         <div
-                            className="text-lg text-gray-600 leading-relaxed break-words w-full max-w-full [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-4xl [&>h1]:font-black [&>h1]:mb-6 [&>h1]:text-gray-900 [&>h2]:text-3xl [&>h2]:font-bold [&>h2]:mb-4 [&>h2]:text-gray-900"
-                            dangerouslySetInnerHTML={{ __html: customMessage || defaultMessage }}
+                            className="rich-text text-lg text-gray-600 leading-relaxed break-words w-full max-w-full [&>h1]:text-4xl [&>h1]:font-black [&>h1]:mb-6 [&>h1]:text-gray-900 [&>h2]:text-3xl [&>h2]:font-bold [&>h2]:mb-4 [&>h2]:text-gray-900"
+                            dangerouslySetInnerHTML={{ __html: formatHtmlForDisplay(customMessage || defaultMessage) }}
                         />
                     </div>
                 </div>
@@ -254,6 +285,16 @@ function RegistrationForm({ onComplete, loading: parentLoading }: { onComplete: 
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         );
 
+        // Set fallback cookie for redirect (Robustness)
+        document.cookie = `auth_redirect=/welcome; path=/; max-age=300`;
+
+        // Check for existing Anon User ID to merge later
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+            document.cookie = `prev_anon_id=${user.id}; path=/; max-age=300`;
+            console.log("Saved prev_anon_id:", user.id);
+        }
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider: provider,
             options: {
@@ -334,31 +375,6 @@ function RegistrationForm({ onComplete, loading: parentLoading }: { onComplete: 
                     </svg>
                     Google
                 </button>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <button
-                        type="button"
-                        onClick={() => handleOAuth('apple')}
-                        disabled={isLoading}
-                        className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                        <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17.05 20.28c-.98.95-2.05.88-3.08.38-1.07-.52-2.05-.51-3.21 0-1.07.51-2.15.55-3.08-.38-.98-.95-2.45-3.08-2.05-6.52.4-3.44 2.92-4.8 4.54-4.8 1.1 0 1.99.71 2.54.71.55 0 1.57-.71 2.87-.71 1.07 0 2.22.45 2.89 1.45-2.52 1.35-2.05 5.07.45 6.18-.53 1.56-1.3 3.07-1.87 3.69zM12.03 7.25c-.15 2.23-1.63 4.02-3.83 4.02-1.02 0-2.13-.53-2.67-2.4 1.77-5.91 6.64-4.08 6.5-1.62z" />
-                        </svg>
-                        Apple
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleOAuth('facebook')}
-                        disabled={isLoading}
-                        className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                        <svg className="h-5 w-5 mr-2 text-[#1877F2]" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                        </svg>
-                        Facebook
-                    </button>
-                </div>
             </div>
         </form>
     );

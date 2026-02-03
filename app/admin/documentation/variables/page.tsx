@@ -124,11 +124,66 @@ export default function VariablesDocumentationPage() {
                     </div>
                 </section>
 
-                {/* SECTION 3: DYNAMIC HISTORY */}
+                {/* SECTION 3: CONTEXTUAL RANDOM PICKS */}
+                <section>
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="bg-green-400 p-2 rounded-lg text-white">
+                            <span className="text-2xl font-black">3</span>
+                        </div>
+                        <h2 className="text-2xl font-black">Contextual Random Picks (Level Specific)</h2>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="p-6 bg-green-50/50 border-b border-green-100 text-sm text-green-800">
+                            <strong>Note:</strong> These variables work best in <em>Level Completion</em> messages. They pick a random example from the user's actual performance in the current level to make feedback feel personal.
+                        </div>
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50 text-xs uppercase text-gray-400 font-bold tracking-wider">
+                                <tr>
+                                    <th className="px-6 py-4">Variable (Click to Copy)</th>
+                                    <th className="px-6 py-4">Description</th>
+                                    <th className="px-6 py-4">Example Output</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                <tr>
+                                    <td className="px-6 py-4">
+                                        <CopyButton text="[[RandomCorrectPick]]" />
+                                    </td>
+                                    <td className="px-6 py-4">A user's correct choice text.</td>
+                                    <td className="px-6 py-4 text-gray-600">"craft table"</td>
+                                </tr>
+                                <tr>
+                                    <td className="px-6 py-4">
+                                        <CopyButton text="[[RandomIncorrectPick]]" />
+                                    </td>
+                                    <td className="px-6 py-4">A user's incorrect choice text.</td>
+                                    <td className="px-6 py-4 text-gray-600">"assembly line"</td>
+                                </tr>
+                                <tr>
+                                    <td className="px-6 py-4">
+                                        <CopyButton text="[[RandomCorrectPoll]]" />
+                                    </td>
+                                    <td className="px-6 py-4">Title of a poll they got right.</td>
+                                    <td className="px-6 py-4 text-gray-600">"assembly line | craft table"</td>
+                                </tr>
+                                <tr>
+                                    <td className="px-6 py-4">
+                                        <CopyButton text="[[RandomIncorrectPoll]]" />
+                                    </td>
+                                    <td className="px-6 py-4">Title of a poll they got wrong.</td>
+                                    <td className="px-6 py-4 text-gray-600">"clock | hourglass"</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                {/* SECTION 4: DYNAMIC HISTORY */}
                 <section>
                     <div className="flex items-center gap-4 mb-6">
                         <div className="bg-purple-400 p-2 rounded-lg text-white">
-                            <span className="text-2xl font-black">3</span>
+                            <span className="text-2xl font-black">4</span>
                         </div>
                         <h2 className="text-2xl font-black">Dynamic History (Call-Backs)</h2>
                     </div>

@@ -12,8 +12,8 @@ interface PollValues {
     id: string;
     title: string;
     instructions: string;
-    instructions_correct?: string;
-    instructions_incorrect?: string;
+    feedback_correct?: string;
+    feedback_incorrect?: string;
     stage: number;
     level: number;
     poll_order: number;
@@ -53,8 +53,8 @@ export default function EditPollForm({
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState("");
     const [instructions, setInstructions] = useState(poll.instructions || "");
-    const [instructionsCorrect, setInstructionsCorrect] = useState(poll.instructions_correct || "");
-    const [instructionsIncorrect, setInstructionsIncorrect] = useState(poll.instructions_incorrect || "");
+    const [instructionsCorrect, setInstructionsCorrect] = useState(poll.feedback_correct || "");
+    const [instructionsIncorrect, setInstructionsIncorrect] = useState(poll.feedback_incorrect || "");
 
     // Sort objects by ID (which contains index)
     const objects = poll.poll_objects?.sort((a: any, b: any) => a.id.localeCompare(b.id)) || [];
@@ -106,7 +106,7 @@ export default function EditPollForm({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex flex-col gap-2">
                             <label className="font-bold text-green-700">Correct Answer Feedback</label>
-                            <input type="hidden" name="instructions_correct" value={instructionsCorrect} />
+                            <input type="hidden" name="feedback_correct" value={instructionsCorrect} />
                             <RichTextEditor
                                 value={instructionsCorrect}
                                 onChange={setInstructionsCorrect}
@@ -116,7 +116,7 @@ export default function EditPollForm({
                         </div>
                         <div className="flex flex-col gap-2">
                             <label className="font-bold text-red-700">Incorrect Answer Feedback</label>
-                            <input type="hidden" name="instructions_incorrect" value={instructionsIncorrect} />
+                            <input type="hidden" name="feedback_incorrect" value={instructionsIncorrect} />
                             <RichTextEditor
                                 value={instructionsIncorrect}
                                 onChange={setInstructionsIncorrect}
@@ -226,7 +226,7 @@ export default function EditPollForm({
                                         <div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                                             <h3 className="font-bold mb-3">Object {num}</h3>
                                             <div className="flex flex-col gap-3">
-                                                {(poll.type === "image_isit" || poll.type === "quad_sorting") && (
+                                                {(poll.type === "isit_image" || poll.type === "quad_sorting") && (
                                                     <>
                                                         {obj?.image_url && (
                                                             <div className="w-20 h-20 rounded-md overflow-hidden bg-gray-200 border border-gray-300">
@@ -240,7 +240,7 @@ export default function EditPollForm({
                                                 <input
                                                     name={`obj${num}_text`}
                                                     defaultValue={obj?.text}
-                                                    placeholder={poll.type === "image_isit" ? "Label / Alt Text" : "Word"}
+                                                    placeholder={poll.type === "isit_image" ? "Label / Alt Text" : "Word"}
                                                     required
                                                     className="border-2 border-black p-2 rounded-lg"
                                                 />

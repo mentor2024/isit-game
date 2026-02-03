@@ -36,21 +36,38 @@ const AVAILABLE_MODULES = [
 export default function LevelEditorForm({
     stage,
     level,
-    initialConfig
+    initialConfig,
+    pollCount
 }: {
     stage: number;
     level: number;
-    initialConfig?: LevelConfig
+    initialConfig?: LevelConfig;
+    pollCount: number;
 }) {
+    // Aggressive client-side cleanup
+    const cleanClientHtml = (html: string | undefined | null) => {
+        if (!html) return "";
+        return html
+            // Remove NBSP variants
+            .replace(/&nbsp;/g, ' ')
+            .replace(/\u00A0/g, ' ')
+            .replace(/&amp;nbsp;/g, ' ')
+            // Remove newlines/spaces between tags causing "extra line breaks"
+            // Be careful not to merge words: only match > whitespace <
+            .replace(/>\s+</g, '><')
+            // Optional: trim extra whitespace
+            .trim();
+    };
+
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
 
-    // Rich Text State
-    const [instructions, setInstructions] = useState(initialConfig?.instructions || "");
-    const [awarenessAssessment, setAwarenessAssessment] = useState(initialConfig?.awareness_assessment || "");
-    const [tierAMessage, setTierAMessage] = useState(initialConfig?.score_tiers?.[0]?.message || "Outstanding! You are in Group A.");
-    const [tierBMessage, setTierBMessage] = useState(initialConfig?.score_tiers?.[1]?.message || "Good effort. You are in Group B.");
-    const [tierCMessage, setTierCMessage] = useState(initialConfig?.score_tiers?.[2]?.message || "Needs improvement. You are in Group C.");
+    // Rich Text State (Cleaned on Init)
+    const [instructions, setInstructions] = useState(cleanClientHtml(initialConfig?.instructions));
+    const [awarenessAssessment, setAwarenessAssessment] = useState(cleanClientHtml(initialConfig?.awareness_assessment));
+    const [tierAMessage, setTierAMessage] = useState(cleanClientHtml(initialConfig?.score_tiers?.[0]?.message) || "Outstanding! You are in Group A.");
+    const [tierBMessage, setTierBMessage] = useState(cleanClientHtml(initialConfig?.score_tiers?.[1]?.message) || "Good effort. You are in Group B.");
+    const [tierCMessage, setTierCMessage] = useState(cleanClientHtml(initialConfig?.score_tiers?.[2]?.message) || "Needs improvement. You are in Group C.");
 
     // Path Selector State
     const savedPathConfig = initialConfig?.path_selector_config;
@@ -72,9 +89,17 @@ export default function LevelEditorForm({
         }
     };
 
+
     async function handleSubmit(formData: FormData) {
         setLoading(true);
         setMessage("");
+
+        // Clean again on save just in case
+        formData.set("instructions", cleanClientHtml(instructions));
+        if (awarenessAssessment) formData.set("awareness_assessment", cleanClientHtml(awarenessAssessment));
+        formData.set("tier_a_message", cleanClientHtml(tierAMessage));
+        formData.set("tier_b_message", cleanClientHtml(tierBMessage));
+        formData.set("tier_c_message", cleanClientHtml(tierCMessage));
 
         const result = await saveLevelConfig(stage, level, formData);
 
@@ -103,18 +128,7 @@ export default function LevelEditorForm({
                 </div>
             )}
 
-            {/* Awareness Assessment (New) */}
-            <div className="mb-8 p-6 bg-purple-50 border-2 border-purple-200 rounded-xl">
-                <h3 className="font-bold text-purple-900 mb-4 flex items-center gap-2">🧠 Awareness Assessment</h3>
-                <input type="hidden" name="awareness_assessment" value={awarenessAssessment} />
-                <RichTextEditor
-                    label="Assessment Content"
-                    value={awarenessAssessment}
-                    onChange={setAwarenessAssessment}
-                    placeholder="Enter assessment details..."
-                    heightClass="h-32"
-                />
-            </div>
+
 
             {/* Modules */}
             <div className="mb-10">
@@ -151,17 +165,27 @@ export default function LevelEditorForm({
                     <span className="font-bold text-blue-900">Link polls in this level as a series?</span>
                 </label>
 
-                <p className="text-sm text-blue-700 mb-6">
+                <p className="text-sm text-blue-700">
                     If checked, completing the last poll in this level will trigger a "Level Result" screen showing the total score from all linked polls.
                 </p>
+            </div>
+
+            {/* Score Tiers Config */}
+            <div className="mb-10 p-6 bg-green-50 border-2 border-green-200 rounded-xl">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-black text-xl text-green-900 flex items-center gap-2">
+                        📊 Scoring Groups (A, B, C)
+                    </h3>
+                    <div className="bg-black text-white px-3 py-1 rounded-lg text-sm font-bold">
+                        Total Possible Points: {pollCount * (stage || 1) * (level || 1)}
+                    </div>
+                </div>
+
+                <div className="bg-green-100 p-4 rounded-lg text-sm text-green-900 mb-6">
+                    <p>Configure ranges for feedback. Players fall into the highest group they qualify for.</p>
+                </div>
 
                 <div className="grid grid-cols-1 gap-6">
-                    {/* Score Tiers Info */}
-                    <div className="bg-blue-100 p-4 rounded-lg text-sm text-blue-900">
-                        <p className="font-bold mb-2">Scoring Groups (A, B, C)</p>
-                        <p>Configure ranges for feedback. Players fall into the highest group they qualify for.</p>
-                    </div>
-
                     {/* Group A */}
                     <div className="p-4 bg-white rounded-xl border border-green-200 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-bl-lg">Highest</div>

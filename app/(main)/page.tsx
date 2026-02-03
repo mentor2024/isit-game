@@ -28,7 +28,7 @@ export default function Home() {
         <p className="text-lg text-gray-600 font-bold">No sign-up required.</p>
 
         <Link href="/poll" className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-200 bg-gradient-to-r from-[#EFBF04] to-[#C29B0C] rounded-full hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 shadow-xl">
-          <span>Begin Your Awareness Check</span>
+          <span>Begin Your Awareness Assessment</span>
           <svg className="w-5 h-5 ml-2 -mr-1 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
           </svg>

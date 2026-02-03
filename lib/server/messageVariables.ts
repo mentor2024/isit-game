@@ -3,6 +3,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Resolves dynamic message variables like [[Q-S1-L1-P1]] (Question), [[A-S1-L1-P1]] (Answer), and [[P-S1-L1-P1]] (Points).
+ * Also supports context-aware variables like [[RandomCorrectPick]] and [[RandomIncorrectPick]].
  * 
  * Format: [[Type-Stage-Level-Order]]
  * Type: Q = Question Title, A = User's Answer (selected object text), P = Points Earned
@@ -13,18 +14,98 @@ import { SupabaseClient } from "@supabase/supabase-js";
 export async function resolveDynamicMessageVariables(
     supabase: SupabaseClient,
     text: string,
-    userId: string
+    userId: string,
+    context?: { stage: number, level: number }
 ): Promise<string> {
     if (!text || !userId) return text;
 
+    let resolvedText = text;
+
+    // --- 0. Context-Aware Random Variables ---
+    if (context) {
+        // Variables: [[RandomCorrectPoll]], [[RandomIncorrectPoll]], [[RandomCorrectPick]], [[RandomIncorrectPick]]
+        const randomVars = [
+            '[[RandomCorrectPoll]]', '[[RandomIncorrectPoll]]',
+            '[[RandomCorrectPick]]', '[[RandomIncorrectPick]]'
+        ];
+
+        const neededVars = randomVars.filter(v => resolvedText.includes(v));
+
+        if (neededVars.length > 0) {
+            // Fetch all votes for this user in this stage/level
+            // We need to join with polls to check stage/level
+            const { data: votes } = await supabase
+                .from('poll_votes')
+                .select(`
+                    id,
+                    is_correct,
+                    chosen_side,
+                    selected_object_id,
+                    points_earned,
+                    poll:polls!inner(
+                        id,
+                        title,
+                        stage,
+                        level,
+                        poll_objects(id, text, side)
+                    )
+                `)
+                .eq('user_id', userId)
+                .eq('poll.stage', context.stage)
+                .eq('poll.level', context.level);
+
+            if (votes && votes.length > 0) {
+                // @ts-ignore
+                const correctVotes = votes.filter(v => v.is_correct);
+                // @ts-ignore
+                const incorrectVotes = votes.filter(v => !v.is_correct);
+
+                // Helper to pick random item
+                const pickRandom = (arr: any[]) => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
+
+                // [[RandomCorrectPoll]] & [[RandomCorrectPick]]
+                if (resolvedText.includes('[[RandomCorrectPoll]]') || resolvedText.includes('[[RandomCorrectPick]]')) {
+                    const vote = pickRandom(correctVotes);
+                    if (vote) {
+                        // @ts-ignore
+                        resolvedText = resolvedText.replace(/\[\[RandomCorrectPoll\]\]/g, vote.poll.title);
+                        // @ts-ignore
+                        const obj = vote.poll.poll_objects.find((o: any) => o.id === vote.selected_object_id);
+                        resolvedText = resolvedText.replace(/\[\[RandomCorrectPick\]\]/g, obj ? obj.text : "Unknown Correct Pick");
+                    } else {
+                        resolvedText = resolvedText.replace(/\[\[RandomCorrectPoll\]\]/g, "a specific challenge");
+                        resolvedText = resolvedText.replace(/\[\[RandomCorrectPick\]\]/g, "correct choice");
+                    }
+                }
+
+                // [[RandomIncorrectPoll]] & [[RandomIncorrectPick]]
+                if (resolvedText.includes('[[RandomIncorrectPoll]]') || resolvedText.includes('[[RandomIncorrectPick]]')) {
+                    const vote = pickRandom(incorrectVotes);
+                    if (vote) {
+                        // @ts-ignore
+                        resolvedText = resolvedText.replace(/\[\[RandomIncorrectPoll\]\]/g, vote.poll.title);
+
+                        // For incorrect pick, find the object they selected (which was wrong)
+                        // @ts-ignore
+                        const obj = vote.poll.poll_objects.find((o: any) => o.id === vote.selected_object_id);
+                        resolvedText = resolvedText.replace(/\[\[RandomIncorrectPick\]\]/g, obj ? obj.text : "Unknown Incorrect Pick");
+                    } else {
+                        // Fallback if they got everything right (no incorrect votes)
+                        resolvedText = resolvedText.replace(/\[\[RandomIncorrectPoll\]\]/g, "a poll");
+                        resolvedText = resolvedText.replace(/\[\[RandomIncorrectPick\]\]/g, "incorrect option");
+                    }
+                }
+            }
+        }
+    }
+
     // 1. Find all placeholders - Added 'F' to the regex
     const regex = /\[\[([QAPF])-S(\d+)-L(\d+)-P(\d+)\]\]/g;
-    const matches = [...text.matchAll(regex)];
+    const matches = [...resolvedText.matchAll(regex)];
 
-    if (matches.length === 0) return text;
+    if (matches.length === 0) return resolvedText;
 
     // 2. Extract unique poll requirements (Stage, Level, Order)
-    // Map key: "S#-L#-P#" -> { stage, level, order, inputs: string[] }
     const requiredPolls = new Map<string, { stage: number, level: number, order: number, inputs: string[] }>();
 
     for (const match of matches) {
@@ -42,13 +123,7 @@ export async function resolveDynamicMessageVariables(
         requiredPolls.get(key)!.inputs.push(fullMatch);
     }
 
-    // 3. Batch Query Logic (Simulated batching via Promise.all for simplicity unless we have a complex OR query)
-    // Constructing a single SQL query for mixed Stage/Level/Order is complex ("WHERE (s=1 AND l=1 AND o=1) OR ...")
-    // For now, parallel requests are acceptable as usually there are only 1-3 variables per message.
-
-    // We need to fetch: Poll (for Title) and Vote (for Answer + Points)
-    // Optimization: query polls first to get IDs, then votes.
-
+    // 3. Batch Query Logic (Simulated batching via Promise.all)
     const replacements = new Map<string, string>(); // "[[Q-S1...]]" -> "Is hotdog a sandwich?"
 
     const queries = Array.from(requiredPolls.values()).map(async ({ stage, level, order, inputs }) => {
@@ -220,7 +295,8 @@ export async function resolveDynamicMessageVariables(
     await Promise.all(queries);
 
     // 4. Perform Replacement
-    return text.replace(regex, (match) => {
+    // Use resolvedText here!
+    return resolvedText.replace(regex, (match) => {
         return replacements.get(match) || match;
     });
 }
