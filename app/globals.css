@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+/* Allow Quill tables to have variable column widths based on content */
+.ql-editor table {
+  table-layout: auto !important;
+  width: 100%;
+}
+
+.ql-editor td {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+
+/* Restore paragraph spacing in editor */
+.ql-editor p {
+  margin-bottom: 1em;
+}
+
+/* Force paragraph spacing in rendered content */
+.user-html-content p {
+  margin-bottom: 1.5em !important;
+  line-height: 1.6 !important;
+}
+
+.user-html-content strong,
+.user-html-content b {
+  font-weight: 900 !important;
+}

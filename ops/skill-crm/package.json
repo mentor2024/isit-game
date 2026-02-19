@@ -1,0 +1,9 @@
+{
+    "name": "skill-crm",
+    "version": "1.0.0",
+    "description": "Supabase CRM integration for OpenClaw (Leads & Memories)",
+    "main": "index.js",
+    "dependencies": {
+        "@supabase/supabase-js": "^2.39.0"
+    }
+}
