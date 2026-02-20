@@ -715,6 +715,9 @@ export default async function PollPage({
                         pollId={activePoll.id}
                         objects={objects}
                         sides={sides}
+                        pollType={activePoll.type}
+                        feedbackMajority={activePoll.feedback_majority}
+                        feedbackMinority={activePoll.feedback_minority}
                     />
                 )}
             </main>

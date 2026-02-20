@@ -217,7 +217,7 @@ export async function checkLevelCompletion(supabase: any, user: any, pollId: str
     return { levelUp: false };
 }
 
-export async function submitVote(pollId: string, isWordId: string, itWordId: string): Promise<SubmitVoteResult> {
+export async function submitVote(pollId: string, isWordId: string, itWordId: string, chosenSide?: string): Promise<SubmitVoteResult> {
     try {
         const supabase = await getServerSupabase();
         const { data: { user } } = await supabase.auth.getUser();
@@ -292,7 +292,50 @@ export async function submitVote(pollId: string, isWordId: string, itWordId: str
 
         }
 
-        // 1. Submit Vote via RPC
+        // 1. Get poll type
+        const { data: pollMeta } = await supabase
+            .from('polls')
+            .select('type, feedback_majority, feedback_minority')
+            .eq('id', pollId)
+            .single();
+
+        const isPlus = pollMeta?.type === 'isit_text_plus';
+
+        // 2. isit_text_plus: consensus-based RPC
+        if (isPlus) {
+            const { data: plusResult, error: plusError } = await supabase.rpc('vote_isit_plus', {
+                p_is_word_id: isWordId,
+                p_it_word_id: itWordId,
+                p_poll_id: pollId,
+                p_chosen_side: (chosenSide || 'IS').toUpperCase(),
+            });
+            if (plusError) {
+                console.error('vote_isit_plus error:', plusError);
+                return { success: false, error: plusError.message };
+            }
+            const r = Array.isArray(plusResult) ? plusResult[0] : plusResult;
+            const feedback = r.is_majority
+                ? (pollMeta?.feedback_majority || 'You voted with the majority!')
+                : (pollMeta?.feedback_minority || 'You voted with the minority.');
+            const levelUpResult = await checkLevelCompletion(supabase, pollId, user.id);
+            return {
+                success: true,
+                correct: false,
+                has_answer: false,
+                pollType: 'isit_text_plus',
+                is_majority: r.is_majority,
+                majority_side: r.majority_side,
+                is_votes: r.is_votes,
+                it_votes: r.it_votes,
+                total_votes: r.total_votes,
+                points_awarded: r.points_awarded,
+                stage_multiplier: r.stage_multiplier,
+                feedback,
+                ...levelUpResult,
+            };
+        }
+
+        // 3. Standard isit_text / isit_image RPC
         const { data: voteResult, error: voteError } = await supabase.rpc('vote_isit', {
             p_is_word_id: isWordId,
             p_it_word_id: itWordId,
